@@ -27,43 +27,102 @@ evolve = do
   forM_ gs $ \g -> do
     modify (Heap.insert $ fit g)
 
-  t  <- get
-  t' <- liftIO (newTVarIO t)
-  c  <- liftIO newChan
+  t <- get
+  let (Fen _ r) = minimum t
+  table <- liftIO (newTVarIO t)
+  ruler <- liftIO (newTVarIO r)
+  -- c  <- liftIO newChan
+  queue_inserterc <- liftIO newChan
 
-  t1 <- liftIO . forkIO $ syncAgent t' c
+  let table_agent = tableAgent table queue_inserterc ruler 0 0
 
-  t2 <- liftIO . forkIO $ pointAgent t' c
-  t3 <- liftIO . forkIO $ pointAgent t' c
-
-  -- t4 <- liftIO . forkIO $ crossAgent t' c
-  -- t5 <- liftIO . forkIO $ crossAgent t' c
+  t0 <- liftIO . forkIO . void $ runStateT table_agent t
+  t1 <- liftIO . forkIO . void $ spawnPointAgent ruler table queue_inserterc
+  t2 <- liftIO . forkIO . void $ spawnPointAgent ruler table queue_inserterc
+  -- t3 <- liftIO . forkIO . void $ spawnPointAgent ruler table queue_inserterc
+  -- t4 <- liftIO . forkIO . void $ spawnCrossAgent ruler table queue_inserterc
+  t5 <- liftIO . forkIO . void $ spawnCrossAgent ruler table queue_inserterc
+  t6 <- liftIO . forkIO . void $ spawnCrossAgent ruler table queue_inserterc
 
   _ <- liftIO . forever $ do
-    threadDelay 1_000
-    t_ <- liftIO $ readTVarIO t'
+    threadDelay 100_000
+    t_ <- liftIO $ readTVarIO table
     print t_
     when (done $ Heap.maximum t_) $ do
       print "done"
       print (Heap.maximum t_)
-      forM_ [t1,t2,t3] killThread
+      forM_ [t0,t1,t2,{-t3,t4,-} t5, t6] killThread
       exitSuccess
 
   liftIO exitFailure
 
-syncAgent :: (Eq a, Gen a, Ord b) => TVar (Table a b) -> Chan (Fen a b) -> IO ()
-syncAgent table c = do
-  t <- readTVarIO table
+tableAgent :: (Eq a, Gen a, Ord (Score a))
+  => TVar (Table a (Score a))
+  -> Chan (Fen a (Score a)) 
+  -> TVar (Score a)          -- ruler
+  -> Int                     -- count
+  -> Int                     -- iters
+  -> Pop a (Score a)
 
-  replicateM_ 1000 $ do
-    fen@(Fen _ v) <- readChan c
-    let (Fen _ min_v) = minimum t
+tableAgent table queuec ruler count iters = do
+  t <- get
+  let (Fen _ new_ruler) = minimum t
+  liftIO . void . atomically $ swapTVar ruler new_ruler
+  
+  -- when True $ do
+  when (count >= 5 || iters >= 100) . liftIO $ do
+    void . atomically $ swapTVar table t
 
-    when (v > min_v) $ do
-      atomically . modifyTVar table $ Heap.insert fen
-      atomically . modifyTVar table $ Heap.drop 1
+  fen@(Fen _ score) <- liftIO $ readChan queuec
+  (Fen _ min_score) <- gets minimum
+  if score > min_score then do
+    unless (fen `Heap.elem` t) $ do
+      modify (Heap.insert fen)
+      modify (Heap.drop 1)
 
-  syncAgent table c
+    tableAgent table queuec ruler (count + 1) (iters + 1)
+  else
+    tableAgent table queuec ruler count (iters + 1)
+
+spawnPointAgent :: (Gen a, Ord (Score a))
+  => TVar (Score a)           -- comparator
+  -> TVar (Table a (Score a)) -- table TVar
+  -> Chan (Fen a (Score a))   -- queue ~ inserter
+  -> IO (ThreadId, ThreadId, Chan (Fen a (Score a)))
+
+spawnPointAgent ruler t inserter_queue = do
+  point_queue <- newChan
+  t1 <- forkIO $ pointAgent t point_queue
+  t2 <- forkIO $ queueServer ruler point_queue inserter_queue
+  pure (t1, t2, point_queue)
+
+spawnCrossAgent :: (Gen a, Ord (Score a))
+  => TVar (Score a)           -- comparator
+  -> TVar (Table a (Score a)) -- table TVar
+  -> Chan (Fen a (Score a))   -- queue ~ inserter
+  -> IO (ThreadId, ThreadId, Chan (Fen a (Score a)))
+
+spawnCrossAgent ruler t inserter_queue = do
+  point_queue <- newChan
+  t1 <- forkIO $ crossAgent t point_queue
+  t2 <- forkIO $ queueServer ruler point_queue inserter_queue
+  pure (t1, t2, point_queue)
+
+queueServer :: (Gen a, Ord (Score a))
+  => TVar (Score a)         -- comparator
+  -> Chan (Fen a (Score a)) -- receive from 
+  -> Chan (Fen a (Score a)) -- send to 
+  -> IO ()
+
+queueServer ruler agent inserter = do
+  ruler_score <- readTVarIO ruler
+  -- replicateM_ times $ do
+  fen@(Fen _ score) <- readChan agent
+  when (score > ruler_score) $
+    writeChan inserter fen
+
+  queueServer ruler agent inserter
+  where times = 10_000
 
 pointAgent :: (Gen a, Ord (Score a)) => TVar (Table a (Score a)) -> Chan (Fen a (Score a)) -> IO ()
 pointAgent table c = do
@@ -84,6 +143,5 @@ crossAgent table c = do
     writeChan c (fit g)
 
   crossAgent table c
-
 
 

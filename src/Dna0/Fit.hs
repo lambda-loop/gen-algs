@@ -31,15 +31,16 @@ answer :: Expr
 answer =
  Add
    (Mul
-      (Mul (Lit 3) (Inv (Lit 2)))
+      (Lit 9) 
       (Pow Inp (Lit 4)))
    (Neg $ Add
       (Add 
-        (Pow Inp (Lit 3))
+        (Mul (Lit 6) (Pow Inp (Lit 3)))
         (Mul 
-            (Mul (Lit 8) (Inv (Lit 3))) 
+            (Lit 16)
             Inp))
       (Neg (Lit 26)))
+
 
 -- (3/2)x^2 - 8x + - 26
 -- answer :: Expr

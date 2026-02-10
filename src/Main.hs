@@ -58,7 +58,7 @@ newWord :: Int -> IO Word
 newWord n = Word <$> 
   Vec.replicateM n randomIO
 
-answer = Vec.fromList "hello vitu"
+answer = Vec.fromList "hello dev"
 
 wordFit :: Word -> Int
 wordFit (Word code) = 

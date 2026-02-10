@@ -52,7 +52,7 @@ extra-doc-files:    CHANGELOG.md
 -- extra-source-files:
 
 common warnings
-    ghc-options: -Wall
+    ghc-options: -Wall -threaded -with-rtsopts=-N -O2
 
 executable word
     -- Import common warning flags.
@@ -64,6 +64,7 @@ executable word
     -- Modules included in this executable, other than Main.
     other-modules: Gen, HallOfFame
       , Dna0.Fit, Dna0.Mut, Dna0.Repr
+      , Dna1.Fit, Dna1.Mut, Dna1.Repr
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
