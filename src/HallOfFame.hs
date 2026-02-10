@@ -40,7 +40,7 @@ evolve = do
   -- t5 <- liftIO . forkIO $ crossAgent t' c
 
   _ <- liftIO . forever $ do
-    threadDelay 1_000_000
+    threadDelay 1_000
     t_ <- liftIO $ readTVarIO t'
     print t_
     when (done $ Heap.maximum t_) $ do

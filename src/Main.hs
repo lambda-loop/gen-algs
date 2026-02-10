@@ -1,4 +1,5 @@
 {-# LANGUAGE TypeFamilies #-}
+{-# OPTIONS_GHC -Wno-orphans #-}
 import Control.Concurrent (forkIO, threadDelay, Chan, newChan, writeChan, readChan)
 import Control.Monad (forever)
 import qualified Data.Vector as Vec
@@ -10,12 +11,17 @@ import System.Random
 import Gen
 import HallOfFame
 import Control.Monad.State (evalStateT)
+import qualified Dna0.Repr as Dna0
+import qualified Dna0.Fit as Dna0
+import qualified Dna0.Mut as Dna0
+import Data.Ord (Down (Down))
 
 
 main :: IO ()
 main = do
-  a <- evalStateT evolve (Heap.empty :: Heap.Heap (Fen Word Int))
-  print "hello, world"
+  -- a <- evalStateT evolve (Heap.empty :: Heap.Heap (Fen Word Int))
+  a <- evalStateT evolve (Heap.empty :: Heap.Heap (Fen Dna0.Expr (Down Double)))
+  print a
 
 instance Gen Word where
   type Score Word = Int
@@ -52,7 +58,7 @@ newWord :: Int -> IO Word
 newWord n = Word <$> 
   Vec.replicateM n randomIO
 
-answer = Vec.fromList "hello word"
+answer = Vec.fromList "hello vitu"
 
 wordFit :: Word -> Int
 wordFit (Word code) = 
@@ -61,4 +67,33 @@ wordFit (Word code) =
     aux x y
       | x == y    = 1
       | otherwise = 0
+
+instance Gen Dna0.Expr where
+  type Score Dna0.Expr = Down Double
+  fit e =  Fen e (Down $ maybe infinity snd $ Dna0.fitness e)
+  point e = do 
+    b <- randomIO
+    (if b then Dna0.pointMut 
+      else Dna0.subTreeMut) e
+  cross eL eR = do 
+    (eL', eR') <- Dna0.crossOverWith eL eR
+    b <- randomIO
+    pure $ if b then eL' else eR'
+
+  new = Dna0.randomDnaWithDepth 6
+
+  done (Fen _ b) = b == 0
+
+  -- generators = pure $ \dnas -> do
+  --   let couples = [(x, y) | x <- dnas, y <- dnas]
+  --   pointeds <- Dna0.pointMut `mapM` dnas
+  --   shaved   <- Dna0.subTreeMut `mapM` dnas
+  --   children <- uncurry Dna0.crossOverWith `mapM` couples
+  --
+  --   pure $ pointeds ++ shaved ++ uncurry (++) (unzip children)
+
+  -- random_new = Dna0.randomDnaWithDepth 12
+
+infinity :: Double
+infinity = 1/0
 
