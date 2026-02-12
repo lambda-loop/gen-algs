@@ -16,11 +16,16 @@ import qualified Dna0.Fit as Dna0
 import qualified Dna0.Mut as Dna0
 import Data.Ord (Down (Down))
 
+import Dna1.Repr 
+import Dna2.Repr (Genome)
+
 
 main :: IO ()
 main = do
   -- a <- evalStateT evolve (Heap.empty :: Heap.Heap (Fen Word Int))
-  a <- evalStateT evolve (Heap.empty :: Heap.Heap (Fen Dna0.Expr (Down Double)))
+  -- a <- evalStateT evolve (Heap.empty :: Heap.Heap (Fen Dna0.Expr (Down Double)))
+  -- a::FastTree <- evalStateT evolve (Heap.empty :: Heap.Heap (Fen FastTree (Down Double)))
+  a <- evalStateT evolve (Heap.empty :: Heap.Heap (Fen Genome (Down Double)))
   print a
 
 instance Gen Word where
@@ -96,4 +101,6 @@ instance Gen Dna0.Expr where
 
 infinity :: Double
 infinity = 1/0
+
+
 

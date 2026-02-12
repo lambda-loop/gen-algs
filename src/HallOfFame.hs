@@ -1,10 +1,8 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 
-
 module HallOfFame where
 
 import Gen
-
 
 import Control.Monad
 import Control.Monad.State
@@ -20,7 +18,7 @@ type Pop a b = StateT (Table a b) IO a
 
 evolve :: (Eq a, Show a, Gen a, Show (Score a), Ord (Score a)) => Pop a (Score a)
 evolve = do
-  let n = 100
+  let n = 50
   gs <- liftIO $ replicateM n new
 
   put Heap.empty
@@ -45,7 +43,7 @@ evolve = do
   t6 <- liftIO . forkIO . void $ spawnCrossAgent ruler table queue_inserterc
 
   _ <- liftIO . forever $ do
-    threadDelay 100_000
+    threadDelay 500_000
     t_ <- liftIO $ readTVarIO table
     print t_
     when (done $ Heap.maximum t_) $ do
@@ -122,7 +120,7 @@ queueServer ruler agent inserter = do
     writeChan inserter fen
 
   queueServer ruler agent inserter
-  where times = 10_000
+  -- where times = 10_000
 
 pointAgent :: (Gen a, Ord (Score a)) => TVar (Table a (Score a)) -> Chan (Fen a (Score a)) -> IO ()
 pointAgent table c = do
@@ -132,7 +130,6 @@ pointAgent table c = do
     writeChan c (fit p)
 
   pointAgent table c
-
 
 crossAgent :: (Gen a, Ord (Score a)) => TVar (Table a (Score a)) -> Chan (Fen a (Score a)) -> IO ()
 crossAgent table c = do

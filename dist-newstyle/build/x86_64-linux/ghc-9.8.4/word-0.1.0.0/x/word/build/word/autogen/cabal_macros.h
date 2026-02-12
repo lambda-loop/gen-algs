@@ -20,6 +20,16 @@
   (major1) == 4 && (major2) <  19 || \
   (major1) == 4 && (major2) == 19 && (minor) <= 2)
 #endif /* MIN_VERSION_base */
+/* package bitvec-1.1.5.0 */
+#ifndef VERSION_bitvec
+#define VERSION_bitvec "1.1.5.0"
+#endif /* VERSION_bitvec */
+#ifndef MIN_VERSION_bitvec
+#define MIN_VERSION_bitvec(major1,major2,minor) (\
+  (major1) <  1 || \
+  (major1) == 1 && (major2) <  1 || \
+  (major1) == 1 && (major2) == 1 && (minor) <= 5)
+#endif /* MIN_VERSION_bitvec */
 /* package containers-0.6.8 */
 #ifndef VERSION_containers
 #define VERSION_containers "0.6.8"

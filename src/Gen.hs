@@ -7,7 +7,7 @@ module Gen where
 
 class Gen a where
   type Score a
-  fit   :: a -> Fen a (Score a)
+  fit   :: a -> (Fen a (Score a))
 
   -- TODO: implement it
   -- nularys :: [IO a]
