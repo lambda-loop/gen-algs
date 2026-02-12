@@ -19,13 +19,13 @@ import Data.Ord (Down (Down))
 import Dna1.Repr 
 import Dna2.Repr (Genome)
 
-
 main :: IO ()
 main = do
-  -- a <- evalStateT evolve (Heap.empty :: Heap.Heap (Fen Word Int))
-  -- a <- evalStateT evolve (Heap.empty :: Heap.Heap (Fen Dna0.Expr (Down Double)))
+  -- a :: Word <- evolve -- (Heap.empty :: Heap.Heap (Fen Word Int))
+  -- (a::Dna0.Expr) <- evolve --(Heap.empty :: Heap.Heap (Fen Dna0.Expr (Down Double)))
   -- a::FastTree <- evalStateT evolve (Heap.empty :: Heap.Heap (Fen FastTree (Down Double)))
-  a <- evalStateT evolve (Heap.empty :: Heap.Heap (Fen Genome (Down Double)))
+  a :: Genome <- evolve 
+  -- a <- evalStateT evolve (Heap.empty :: Heap.Heap (Fen Genome (Down Double)))
   print a
 
 instance Gen Word where
@@ -38,7 +38,7 @@ instance Gen Word where
 
 
 newtype Word = Word (Vec.Vector Char)
-  deriving (Show, Eq)
+  deriving (Show, Eq, Ord)
 
 cross :: Word -> Word -> IO Word
 cross (Word codeL) (Word codeR) = do

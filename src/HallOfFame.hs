@@ -94,7 +94,7 @@ type Pop a = StateT (Table a) IO a
 
 evolve :: forall a. (Eq a, Show a, Ord a, Gen a, Eq (Score a), Show (Score a), Ord (Score a)) => IO a
 evolve = do
-  let n = 200
+  let n = 100
   gs:: Vect.Vector a <- Vect.replicateM n new
   -- let xxx = Vect.head gs
 
@@ -116,8 +116,8 @@ evolve = do
   t5 <- liftIO . forkIO . void $ spawnCrossAgent t_ruler t_vect inserterq
   t6 <- liftIO . forkIO . void $ spawnCrossAgent t_ruler t_vect inserterq
 
-  t3 <- liftIO . forkIO . void $ spawnPointAgent t_ruler t_vect inserterq
-  t3 <- liftIO . forkIO . void $ spawnPointAgent t_ruler t_vect inserterq
+  -- t3 <- liftIO . forkIO . void $ spawnPointAgent t_ruler t_vect inserterq
+  -- t3 <- liftIO . forkIO . void $ spawnPointAgent t_ruler t_vect inserterq
   -- t4 <- liftIO . forkIO . void $ spawnCrossAgent t_ruler t_vect inserterq
   -- t4 <- liftIO . forkIO . void $ spawnCrossAgent t_ruler t_vect inserterq
   -- t3 <- liftIO . forkIO . void $ spawnPointAgent t_ruler t_vect inserterq

@@ -13,33 +13,33 @@ import System.Random (uniformRs)
 
 -- the hidden function
 -- f(x) = 2x^2 - 3x + 10
--- answer :: Expr
--- answer =
---  Add
---    (Mul
---       (Lit 2)
---       (Pow
---          Inp
---          (Lit 2)))
---    (Add
---       (Neg $ Mul (Lit 3) Inp)
---       (Lit 10))
-
-
--- (3/2)x^4 - x^3 + (8/3)x - 26
 answer :: Expr
 answer =
  Add
    (Mul
-      (Lit 9) 
-      (Pow Inp (Lit 4)))
-   (Neg $ Add
-      (Add 
-        (Mul (Lit 6) (Pow Inp (Lit 3)))
-        (Mul 
-            (Lit 16)
-            Inp))
-      (Neg (Lit 26)))
+      (Lit 2)
+      (Pow
+         Inp
+         (Lit 2)))
+   (Add
+      (Neg $ Mul (Lit 3) Inp)
+      (Lit 10))
+
+
+-- (3/2)x^4 - x^3 + (8/3)x - 26
+-- answer :: Expr
+-- answer =
+--  Add
+--    (Mul
+--       (Lit 9) 
+--       (Pow Inp (Lit 4)))
+--    (Neg $ Add
+--       (Add 
+--         (Mul (Lit 6) (Pow Inp (Lit 3)))
+--         (Mul 
+--             (Lit 16)
+--             Inp))
+--       (Neg (Lit 26)))
 
 
 -- (3/2)x^2 - 8x + - 26

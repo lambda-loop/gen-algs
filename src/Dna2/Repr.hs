@@ -13,17 +13,17 @@ import Gen (Fen(..))
 
 data Gen 
   = Inp
-  | Lit Integer
+  | Lit Int
   | Add
   | Mul
   | Sub 
   | Div 
   | Pow
-  deriving (Show, Eq)
+  deriving (Show, Eq, Ord)
 
 type Genome = [Gen]
 
-foo :: Genome -> Integer -> [Double] -> Double
+foo :: Genome -> Int -> [Double] -> Double
 foo [] _ []    = 0
 foo [] _ (x:_) = x
 
@@ -50,7 +50,7 @@ foo (Pow:gs) inp []          = foo gs inp [1]
 foo (Pow:gs) inp [x]         = foo gs inp [x] 
 foo (Pow:gs) inp (x:y:stack) = foo gs inp (y**x:stack)
 
--- compile :: Genome -> (Integer -> Integer)
+-- compile :: Genome -> (Int -> Int)
 -- compile []      = error "void function"
 -- compile (Inp:cs)   = \x -> x
 -- compile [Lit n] = const n
@@ -79,7 +79,9 @@ hard = term4 ++ term3 ++ [Sub] ++ term2 ++ [Add] ++ term1 ++ [Sub] ++ term0 ++ [
 
 -- easy: 2x²- 3x + 10
 -- hard: 23x⁴ - 12x³ + 6x² - 8x + 37
-answer = hard 
+-- answer = easy 
+answer :: Genome
+answer = easy
 answerSize = length answer
 
 
@@ -91,7 +93,8 @@ instance Gen.Gen Genome where
     in Fen g (Down v)
 
   new = do 
-    ns::[Int] <- replicateM answerSize $ randomRIO (0, 6)
+    n <- randomRIO (answerSize `div` 2, answerSize*2)
+    ns::[Int] <- replicateM n $ randomRIO (0, 6)
     mapM toGen ns
       
   point genome = do
@@ -196,7 +199,12 @@ expected = fromList [(i, aux i) | i :: Int <- is]
         
 -- standart derivation
 fitness :: Genome -> (Genome, Double)
-fitness genome = sum . fmap (**2) <$> do 
+fitness genome = adjust . sum . fmap (**2) <$> do 
   forM is $ \i -> do
     let out_i = foo genome (fromIntegral i) []
     pure (out_i - expected ! i)
+  where len = length genome
+        tax = fromIntegral len * 0.001
+        adjust x = x + (x * tax)
+
+-- is = [-100 .. 100]

@@ -72,7 +72,8 @@ executable word
     -- other-extensions:
 
     -- Other library packages from which modules are imported.
-    build-depends:    bitvec ^>=1.1.5.0
+    build-depends:    deepseq ^>=1.5.1.0
+                    , bitvec ^>=1.1.5.0
                     , containers ^>=0.6.8
                     , base ^>=4.19.2.0
                     , vector

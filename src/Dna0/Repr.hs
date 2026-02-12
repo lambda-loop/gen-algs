@@ -11,7 +11,7 @@ data Expr
   | Add Expr Expr
   | Mul Expr Expr
   | Pow Expr Expr
-  deriving (Eq, Show)
+  deriving (Eq, Show, Ord)
 
 e1 = Add (Neg Inp) (Pow Inp (Mul (Lit 3) Inp))
 e2 = Mul (Lit 3) (Pow Inp (Lit 2))
