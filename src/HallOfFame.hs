@@ -10,6 +10,8 @@ import Control.Monad.State
 import qualified Data.Heap as Heap
 import Control.Concurrent
 import Control.Concurrent.STM
+import Control.Concurrent.STM.TBQueue
+import Control.DeepSeq
 import qualified Data.Foldable as Heap
 import System.Exit
 
@@ -30,17 +32,17 @@ evolve = do
   table <- liftIO (newTVarIO t)
   ruler <- liftIO (newTVarIO r)
   -- c  <- liftIO newChan
-  queue_inserterc <- liftIO newChan
+  inserterq <- liftIO $ newTBQueueIO (fromIntegral $ n `div` 2)
 
-  let table_agent = tableAgent table queue_inserterc ruler 0 0
+  let table_agent = tableAgent table inserterq ruler 0 0
 
   t0 <- liftIO . forkIO . void $ runStateT table_agent t
-  t1 <- liftIO . forkIO . void $ spawnPointAgent ruler table queue_inserterc
-  t2 <- liftIO . forkIO . void $ spawnPointAgent ruler table queue_inserterc
+  t1 <- liftIO . forkIO . void $ spawnPointAgent ruler table inserterq
+  t2 <- liftIO . forkIO . void $ spawnPointAgent ruler table inserterq
   -- t3 <- liftIO . forkIO . void $ spawnPointAgent ruler table queue_inserterc
   -- t4 <- liftIO . forkIO . void $ spawnCrossAgent ruler table queue_inserterc
-  t5 <- liftIO . forkIO . void $ spawnCrossAgent ruler table queue_inserterc
-  t6 <- liftIO . forkIO . void $ spawnCrossAgent ruler table queue_inserterc
+  t5 <- liftIO . forkIO . void $ spawnCrossAgent ruler table inserterq
+  t6 <- liftIO . forkIO . void $ spawnCrossAgent ruler table inserterq
 
   _ <- liftIO . forever $ do
     threadDelay 500_000
@@ -56,7 +58,7 @@ evolve = do
 
 tableAgent :: (Eq a, Gen a, Ord (Score a))
   => TVar (Table a (Score a))
-  -> Chan (Fen a (Score a)) 
+  -> TBQueue (Fen a (Score a)) 
   -> TVar (Score a)          -- ruler
   -> Int                     -- count
   -> Int                     -- iters
@@ -71,7 +73,7 @@ tableAgent table queuec ruler count iters = do
   when (count >= 5 || iters >= 100) . liftIO $ do
     void . atomically $ swapTVar table t
 
-  fen@(Fen _ score) <- liftIO $ readChan queuec
+  fen@(Fen _ score) <- liftIO . atomically $ readTBQueue queuec
   (Fen _ min_score) <- gets minimum
   if score > min_score then do
     unless (fen `Heap.elem` t) $ do
@@ -85,11 +87,11 @@ tableAgent table queuec ruler count iters = do
 spawnPointAgent :: (Gen a, Ord (Score a))
   => TVar (Score a)           -- comparator
   -> TVar (Table a (Score a)) -- table TVar
-  -> Chan (Fen a (Score a))   -- queue ~ inserter
-  -> IO (ThreadId, ThreadId, Chan (Fen a (Score a)))
+  -> TBQueue (Fen a (Score a))   -- queue ~ inserter
+  -> IO (ThreadId, ThreadId, TBQueue (Fen a (Score a)))
 
 spawnPointAgent ruler t inserter_queue = do
-  point_queue <- newChan
+  point_queue <- atomically $ newTBQueue 100
   t1 <- forkIO $ pointAgent t point_queue
   t2 <- forkIO $ queueServer ruler point_queue inserter_queue
   pure (t1, t2, point_queue)
@@ -97,47 +99,55 @@ spawnPointAgent ruler t inserter_queue = do
 spawnCrossAgent :: (Gen a, Ord (Score a))
   => TVar (Score a)           -- comparator
   -> TVar (Table a (Score a)) -- table TVar
-  -> Chan (Fen a (Score a))   -- queue ~ inserter
-  -> IO (ThreadId, ThreadId, Chan (Fen a (Score a)))
+  -> TBQueue (Fen a (Score a))   -- queue ~ inserter
+  -> IO (ThreadId, ThreadId, TBQueue (Fen a (Score a)))
 
 spawnCrossAgent ruler t inserter_queue = do
-  point_queue <- newChan
+  point_queue <- atomically $ newTBQueue 100
   t1 <- forkIO $ crossAgent t point_queue
   t2 <- forkIO $ queueServer ruler point_queue inserter_queue
   pure (t1, t2, point_queue)
 
 queueServer :: (Gen a, Ord (Score a))
   => TVar (Score a)         -- comparator
-  -> Chan (Fen a (Score a)) -- receive from 
-  -> Chan (Fen a (Score a)) -- send to 
+  -> TBQueue (Fen a (Score a)) -- receive from 
+  -> TBQueue (Fen a (Score a)) -- send to 
   -> IO ()
 
 queueServer ruler agent inserter = do
   ruler_score <- readTVarIO ruler
   -- replicateM_ times $ do
-  fen@(Fen _ score) <- readChan agent
+  fen@(Fen _ score) <- atomically $ readTBQueue agent
   when (score > ruler_score) $
-    writeChan inserter fen
+    atomically $ writeTBQueue inserter $! fen
+    -- writeChan inserter fen
 
   queueServer ruler agent inserter
   -- where times = 10_000
 
-pointAgent :: (Gen a, Ord (Score a)) => TVar (Table a (Score a)) -> Chan (Fen a (Score a)) -> IO ()
+pointAgent :: (Gen a, Ord (Score a)) 
+  => TVar (Table a (Score a)) 
+  -> TBQueue (Fen a (Score a)) 
+  -> IO ()
 pointAgent table c = do
   fens <- Heap.toUnsortedList <$> readTVarIO table
   forM_ fens $ \(Fen g _) -> do
     p <- point g
-    writeChan c (fit p)
+    atomically $ writeTBQueue c $! fit p
+    -- writeChan c (fit p)
 
   pointAgent table c
 
-crossAgent :: (Gen a, Ord (Score a)) => TVar (Table a (Score a)) -> Chan (Fen a (Score a)) -> IO ()
+crossAgent :: (Gen a, Ord (Score a)) 
+  => TVar (Table a (Score a)) 
+  -> TBQueue (Fen a (Score a)) 
+  -> IO ()
 crossAgent table c = do
   fens <- Heap.toUnsortedList <$> readTVarIO table
   let pairs = (,) <$> fens <*> fens
   forM_ pairs $ \(Fen gL _, Fen gR _) -> do
     g <- cross gL gR
-    writeChan c (fit g)
+    atomically $ writeTBQueue c $! fit g
 
   crossAgent table c
 
