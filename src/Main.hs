@@ -23,18 +23,18 @@ main :: IO ()
 main = do
   -- a :: Word <- evolve -- (Heap.empty :: Heap.Heap (Fen Word Int))
   -- (a::Dna0.Expr) <- evolve --(Heap.empty :: Heap.Heap (Fen Dna0.Expr (Down Double)))
-  -- a::FastTree <- evalStateT evolve (Heap.empty :: Heap.Heap (Fen FastTree (Down Double)))
+  -- a::FastTree <- evolve -- (Heap.empty :: Heap.Heap (Fen FastTree (Down Double)))
   a :: Genome <- evolve 
   -- a <- evalStateT evolve (Heap.empty :: Heap.Heap (Fen Genome (Down Double)))
   print a
 
-instance Gen Word where
-  type Score Word = Int
-  fit w = Fen w (wordFit w)
-  new = newWord (Vec.length answer)
-  point = Main.point
-  cross = Main.cross 
-  done (Fen (Word w) _) = w == answer
+-- instance Gen Word where
+--   type Score Word = Int
+--   fit w = Fen w (wordFit w)
+--   new = newWord (Vec.length answer)
+--   point = Main.point
+--   cross = Main.cross 
+--   done (Fen (Word w) _) = w == answer
 
 
 newtype Word = Word (Vec.Vector Char)
@@ -73,34 +73,34 @@ wordFit (Word code) =
       | x == y    = 1
       | otherwise = 0
 
-instance Gen Dna0.Expr where
-  type Score Dna0.Expr = Down Double
-  fit e =  Fen e (Down $ maybe infinity snd $ Dna0.fitness e)
-  point e = do 
-    b <- randomIO
-    (if b then Dna0.pointMut 
-      else Dna0.subTreeMut) e
-  cross eL eR = do 
-    (eL', eR') <- Dna0.crossOverWith eL eR
-    b <- randomIO
-    pure $ if b then eL' else eR'
-
-  new = Dna0.randomDnaWithDepth 6
-
-  done (Fen _ b) = b == 0
-
-  -- generators = pure $ \dnas -> do
-  --   let couples = [(x, y) | x <- dnas, y <- dnas]
-  --   pointeds <- Dna0.pointMut `mapM` dnas
-  --   shaved   <- Dna0.subTreeMut `mapM` dnas
-  --   children <- uncurry Dna0.crossOverWith `mapM` couples
-  --
-  --   pure $ pointeds ++ shaved ++ uncurry (++) (unzip children)
-
-  -- random_new = Dna0.randomDnaWithDepth 12
-
-infinity :: Double
-infinity = 1/0
-
-
-
+-- instance Gen Dna0.Expr where
+--   type Score Dna0.Expr = Down Double
+--   fit e =  Fen e (Down $ maybe infinity snd $ Dna0.fitness e)
+--   point e = do 
+--     b <- randomIO
+--     (if b then Dna0.pointMut 
+--       else Dna0.subTreeMut) e
+--   cross eL eR = do 
+--     (eL', eR') <- Dna0.crossOverWith eL eR
+--     b <- randomIO
+--     pure $ if b then eL' else eR'
+--
+--   new = Dna0.randomDnaWithDepth 6
+--
+--   done (Fen _ b) = b == 0
+--
+--   -- generators = pure $ \dnas -> do
+--   --   let couples = [(x, y) | x <- dnas, y <- dnas]
+--   --   pointeds <- Dna0.pointMut `mapM` dnas
+--   --   shaved   <- Dna0.subTreeMut `mapM` dnas
+--   --   children <- uncurry Dna0.crossOverWith `mapM` couples
+--   --
+--   --   pure $ pointeds ++ shaved ++ uncurry (++) (unzip children)
+--
+--   -- random_new = Dna0.randomDnaWithDepth 12
+--
+-- infinity :: Double
+-- infinity = 1/0
+--
+--
+--

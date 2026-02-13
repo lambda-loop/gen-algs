@@ -6,10 +6,11 @@ import Control.Monad
   
 import qualified Gen 
 import Data.Ord (Down (Down))
-import System.Random
+import qualified System.Random.MWC as MWC
 import Data.Map.Strict hiding (drop)
 import Dna0.Fit (is)
 import Gen (Fen(..))
+import System.Random (randomRIO)
 
 data Gen 
   = Inp
@@ -55,7 +56,6 @@ foo (Pow:gs) inp (x:y:stack) = foo gs inp (y**x:stack)
 -- compile (Inp:cs)   = \x -> x
 -- compile [Lit n] = const n
 
-
 safeDiv :: Double -> Double -> Double
 safeDiv _ 0 = 0
 safeDiv y x = y / x
@@ -71,8 +71,8 @@ easy =
 hard :: Genome
 hard = term4 ++ term3 ++ [Sub] ++ term2 ++ [Add] ++ term1 ++ [Sub] ++ term0 ++ [Add]
   where
-    term4 = [Inp, Lit 4, Pow, Lit 23, Mul] 
-    term3 = [Inp, Lit 3, Pow, Lit 12, Mul] 
+    term4 = [Inp, Lit 4, Pow, Lit 1, Mul] 
+    term3 = [Inp, Lit 3, Pow, Lit 1, Mul] 
     term2 = [Inp, Lit 2, Pow, Lit 6,  Mul] 
     term1 = [Inp, Lit 8, Mul]              
     term0 = [Lit 37]                       
@@ -93,19 +93,19 @@ instance Gen.Gen Genome where
     in Fen g (Down v)
 
   new = do 
-    n <- randomRIO (answerSize `div` 2, answerSize*2)
-    ns::[Int] <- replicateM n $ randomRIO (0, 6)
-    mapM toGen ns
+    n <- randomRIO (answerSize `div` 2, answerSize*2) 
+    ns::[Int] <- replicateM n $ randomRIO (0, 6) 
+    mapM toGenSlow ns
       
-  point genome = do
+  point genome gen = do
     let genome_len = length genome
-    n::Int <- randomRIO (0, genome_len - 1)
-    r::Int <- randomRIO (1, genome_len - n)
+    n::Int <- MWC.uniformR (0, genome_len - 1) gen
+    r::Int <- MWC.uniformR (1, genome_len - n) gen
 
     let 
       randInsertAt g i = do
-        ns <- replicateM r $ randomRIO (0, 6)
-        gs'<- mapM toGen ns
+        ns <- replicateM r $ MWC.uniformR (0, 6) gen
+        gs'<- mapM (`toGen` gen) ns
 
         pure $ putAtIn gs' i g
 
@@ -116,8 +116,8 @@ instance Gen.Gen Genome where
             | otherwise = r_:putAtIn ls (num-1) rs
 
       randChangeAt g i = do
-        ns <- replicateM r $ randomRIO (0, 6)
-        gs'<- mapM toGen ns
+        ns <- replicateM r $ MWC.uniformR (0, 6) gen
+        gs'<- mapM (`toGen` gen) ns
 
         pure $ replaceAtIn gs' i g
         
@@ -139,14 +139,14 @@ instance Gen.Gen Genome where
             | otherwise = l_:delAtIn ls (n-1)
 
 
-    a::Int <- randomRIO (0::Int, 2)
+    a::Int <- MWC.uniformR (0::Int, 2) gen
     (case a of
       0 -> randInsertAt
       1 -> randChangeAt
       _ -> randDeleteAt) genome n
 
-  cross ls rs = do
-    a :: Int <- randomRIO (0, 3)
+  cross ls rs gen = do
+    a :: Int <- MWC.uniformR (0, 3) gen
     case a of
       0 -> pure $ altBig True ls rs
       1 -> pure $ altSmall True ls rs
@@ -166,30 +166,40 @@ instance Gen.Gen Genome where
       randBig [] rs' = pure rs'
       randBig ls' [] = pure ls'
       randBig (l:ls') (r:rs') = do
-          useLeft <- randomIO 
+          useLeft <- MWC.uniform gen
           rest <- randBig ls' rs'
           pure $ (if useLeft then l else r) : rest
   
       randSmall [] _ = pure []
       randSmall _ [] = pure []
       randSmall (l:ls') (r:rs') = do
-          useLeft <- randomIO
+          useLeft <- MWC.uniform gen
           rest <- randSmall ls' rs'
           pure $ (if useLeft then l else r) : rest
   
 
 -- (0, 6) range
-toGen :: Int -> IO Gen
-toGen 0 = pure Inp
-toGen 1 = newLit
-toGen 2 = pure Add
-toGen 3 = pure Mul
-toGen 4 = pure Sub 
-toGen 5 = pure Div 
-toGen _ = pure Pow
+toGen :: Int -> MWC.GenIO -> IO Gen
+toGen 0 _ = pure Inp
+toGen 1 g = newLit g
+toGen 2 _ = pure Add
+toGen 3 _ = pure Mul
+toGen 4 _ = pure Sub 
+toGen 5 _ = pure Div 
+toGen _ _ = pure Pow
 
-newLit :: IO Gen
-newLit = Lit <$> randomRIO (-100, 100)
+toGenSlow :: Int -> IO Gen
+toGenSlow 0 = pure Inp
+toGenSlow 1 = newLitSlow
+toGenSlow 2 = pure Add
+toGenSlow 3 = pure Mul
+toGenSlow 4 = pure Sub 
+toGenSlow 5 = pure Div 
+toGenSlow _ = pure Pow
+
+newLit :: MWC.GenIO -> IO Gen
+newLit gen = Lit <$> MWC.uniformR (-100, 100) gen
+newLitSlow = Lit <$> randomRIO (-100, 100) 
 
 expected :: Map Int Double
 expected = fromList [(i, aux i) | i :: Int <- is]

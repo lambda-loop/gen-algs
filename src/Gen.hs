@@ -5,9 +5,11 @@
 
 module Gen where
 
+import qualified System.Random.MWC as MWC
+
 class Gen a where
   type Score a
-  fit   :: a -> (Fen a (Score a))
+  fit   :: a -> Fen a (Score a)
 
   -- TODO: implement it
   -- nularys :: [IO a]
@@ -15,8 +17,9 @@ class Gen a where
   -- binarys :: [a -> a -> IO a]
 
   new   :: IO a
-  point :: a -> IO a
-  cross :: a -> a -> IO a
+
+  point :: a -> MWC.GenIO -> IO a 
+  cross :: a -> a -> MWC.GenIO -> IO a
 
   -- in the snake case, the Fen is also important because 
   -- rerunning the fit could not lead to the same result

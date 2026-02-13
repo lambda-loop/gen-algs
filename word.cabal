@@ -82,6 +82,8 @@ executable word
                     , mtl
                     , stm
 
+                    , mwc-random
+
     -- Directories containing source files.
     hs-source-dirs:   src
 

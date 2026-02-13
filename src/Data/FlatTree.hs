@@ -22,7 +22,7 @@ data FlatTree a b = FlatTree
     , _branches :: !(UVec.Vector a)
     , _leaves   :: !(UVec.Vector b)
     , _sizes    :: !(UVec.Vector Int)
-    } deriving (Show, Eq) 
+    } deriving (Show, Eq, Ord) 
 
 data Cursor a b = Cursor
     { _idx  :: !Int
