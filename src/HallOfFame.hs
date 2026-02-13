@@ -26,7 +26,7 @@ import qualified System.Random.MWC as MWC
 -- TODO: type families for vectors with exact size?
 data Table a = Table
   { heap :: Heap.Heap (Indexed (Score a))
-  , vect :: Vect.Vector a
+  , vect :: MVec.IOVector a
   , set  :: Set.Set a
   } -- deriving (Show) 
 
@@ -38,25 +38,23 @@ tMin t =
 tMax :: (Eq (Score a), Ord (Score a)) => Table a -> (Indexed (Score a), Table a)
 tMax t = (Heap.maximum (heap t), t)
 
-idx :: Int -> Table a -> a
-idx i = (Vect.! i) . vect
+-- idx :: Int -> Table a -> a
+-- idx i = (Vect.! i) . vect
+
+-- N Times :P 
+singlesFrom :: Int -> Vect.Vector a -> MWC.GenIO -> IO (Vect.Vector a)
+singlesFrom n v gen = do
+  let v_len = Vect.length v
+  is <- Vect.replicateM n $ MWC.uniformR (0, v_len - 1) gen
+  pure $ Vect.map (v Vect.!) is
 
 -- N Times :P
-singlesFrom :: Int -> TVar (Table a) -> MWC.GenIO -> IO (Vect.Vector a)
-singlesFrom n t gen = do
-  Table{ vect } <- readTVarIO t
-  is <- Vect.replicateM n $ MWC.uniformR (0, Vect.length vect - 1) gen
-  Vect.forM is $ \i -> 
-    pure (vect Vect.! i)
-
--- N Times :P
-pairsFrom :: Int -> TVar (Table a) -> MWC.GenIO -> IO (Vect.Vector (a, a))
-pairsFrom n t gen = do
-  Table{ vect } <- readTVarIO t
-  is <- Vect.replicateM n $ MWC.uniformR (0, Vect.length vect - 1) gen
-  js <- Vect.replicateM n $ MWC.uniformR (0, Vect.length vect - 1) gen
-  Vect.forM (Vect.zip is js) $ \(i, j) -> 
-    pure (vect Vect.! i, vect Vect.! j)
+pairsFrom :: Int -> Vect.Vector a -> MWC.GenIO -> IO (Vect.Vector (a, a))
+pairsFrom n v gen = do
+  let v_len = Vect.length v
+  is <- Vect.replicateM n $ MWC.uniformR (0, v_len - 1) gen
+  js <- Vect.replicateM n $ MWC.uniformR (0, v_len - 1) gen
+  pure $ Vect.zipWith (\i j -> (v Vect.! i, v Vect.! j)) is js
 
 newtype Indexed b = Indexed (Int, b)
   deriving (Eq)
@@ -64,32 +62,32 @@ newtype Indexed b = Indexed (Int, b)
 instance Ord b => Ord (Indexed b) where
   Indexed (_, l) `compare` Indexed (_, r) = l `compare` r
 
-build :: forall a. (Gen a, Ord a, Ord (Score a)) => Vect.Vector a -> Table a
-build vec =
-  let !fens = (fit <$> Vect.toList vec)
-      !(gs, ss) = unzip $ (\(Fen g s) -> (g, s)) <$> fens
+build :: forall a. (Gen a, Ord a, Ord (Score a)) => Vect.Vector a -> IO (Table a)
+build vec = do
+  m_vec <- Vect.thaw vec
+  let !fens = fit <$> Vect.toList vec
+      !(gs, ss) = List.unzip $ (\(Fen g s) -> (g, s)) <$> fens
       !i_ss::[Indexed (Score a)] = Indexed <$> zip [0..] ss
 
-  in Table {
+  pure $ Table {
     heap = Heap.fromList i_ss,
-    vect = vec,
+    vect = m_vec,
     set  = Set.fromList gs
   }
 
-insert :: (Gen a, Ord a, Ord (Score a)) => Fen a (Score a) -> Table a -> Table a
-insert (Fen x score) t@Table {..}
-  | x `Set.member` set = t
-  | otherwise =
-    let
-      Indexed (!min_idx, _) = Heap.minimum heap
-      !val                  = vect Vect.! min_idx
-      !set'                 = Set.delete val set
-      !vect'                = vect Vect.// [(min_idx, x)]
-      !heap'  = Heap.adjustMin (\_ -> Indexed (min_idx, score)) heap
+insert :: (Gen a, Ord a, Ord (Score a)) => Table a -> Fen a (Score a) -> IO (Table a)
+insert t@Table {..} (Fen x score) 
+  | x `Set.member` set = pure t
+  | otherwise = do
+    let Indexed (!min_idx, _) = Heap.minimum heap
+    !val <- MVec.read vect min_idx
+    MVec.write vect min_idx x 
+    let !set'   = Set.delete val set
+        !heap'  = Heap.adjustMin (\_ -> Indexed (min_idx, score)) heap
 
-    in Table {
+    pure $ Table {
       heap = heap',
-      vect = vect',
+      vect = vect,
       set  = Set.insert x set'
     }
 
@@ -97,17 +95,17 @@ type Pop a = StateT (Table a) IO a
 
 evolve :: forall a. (Eq a, Show a, Ord a, Gen a, Eq (Score a), Show (Score a), Ord (Score a)) => IO a
 evolve = do
-  let n = 20 --100
+  let n = 100
   gs:: Vect.Vector a <- Vect.replicateM n new
 
-  let table@Table { heap } = build gs
+  table@Table { heap } <- build gs
 
   let Indexed (_, !r) = Heap.minimum heap 
   t_ruler <- liftIO (newTVarIO r)
-  t_table <- liftIO (newTVarIO table)
+  t_vect <- liftIO (newTVarIO gs)
   inserterq <- newTQueueIO -- (fromIntegral 10_0000)
 
-  let table_agent = tableAgent t_table t_ruler r inserterq 
+  let table_agent = tableAgent table t_vect t_ruler r inserterq 
 
   _t0 <- liftIO . forkIO $ table_agent 
   
@@ -115,16 +113,16 @@ evolve = do
   let batch_size = threads*n
   replicateM_ threads $ do 
       gen <- MWC.createSystemRandom
-      forkIO $ pointAgent t_table t_ruler  inserterq gen batch_size
+      forkIO $ pointAgent t_vect t_ruler  inserterq gen batch_size
   
   replicateM_ threads $ do
       gen <- MWC.createSystemRandom
-      forkIO $ crossAgent t_table t_ruler  inserterq gen batch_size
+      forkIO $ crossAgent t_vect t_ruler  inserterq gen batch_size
 
   _ <- liftIO . forever $ do
     -- threadDelay 1_000_000
-    t <- readTVarIO t_table
-    let l = (fmap fit . Vect.toList . vect) t
+    t <- readTVarIO t_vect 
+    let l = (fmap fit . Vect.toList) t
     let rv@(best:_) = List.sortOn (Data.Ord.Down . (\(Fen _ b) -> b)) l
     -- let best = head . reverse $ List.sortOn (\(Fen _ b) -> b) l
     print . take 20 $ fmap (\(Fen _ b) -> b) rv
@@ -139,34 +137,42 @@ evolve = do
   exitFailure
 
 tableAgent :: (Eq a, Ord a, Gen a, Ord (Score a))
-  => TVar (Table a)             -- TVar (Vect.Vector a)
-  -> TVar (Score a)             -- ruler
+  => Table a             
+  -> TVar (Vect.Vector a)  -- snapshopt
+  -> TVar (Score a)        -- ruler
   -> Score a  
   -> TQueue (Fen a (Score a))
   -> IO ()
 
-tableAgent t_table t_ruler ruler queue = do
-  fen@(Fen _ !score) <- atomically (readTQueue queue)
-  ruler' <- if score > ruler 
-    then atomically $ do
-      modifyTVar' t_table (insert fen)
-      !new_min <- stateTVar t_table tMin
-      writeTVar t_ruler new_min
-      pure new_min
+tableAgent table t_vect t_ruler ruler queue = do
+  fens <- atomically $ do
+     f <- readTQueue queue
+     r <- flushTQueue queue
+     pure (f:r)
 
-    else pure ruler
+  case filter (\(Fen _ s) -> s > ruler) fens of
+    [] -> tableAgent table t_vect t_ruler ruler queue
+    fens' -> do
+      table' <- foldM insert table fens'
+      let Indexed (_, !ruler') = Heap.minimum (heap table')
+      snapshot <- Vect.freeze (vect table')
 
-  tableAgent t_table t_ruler ruler' queue 
+      atomically $ do
+        writeTVar t_vect snapshot
+        writeTVar t_ruler ruler'
+
+      tableAgent table' t_vect t_ruler ruler' queue
 
 pointAgent :: (Gen a, Ord (Score a))
-  => TVar (Table a)
+  => TVar (Vect.Vector a)       -- snapshot
   -> TVar (Score a)
   -> TQueue (Fen a (Score a))
   -> MWC.GenIO
   -> Int                        -- batch size
   -> IO ()
-pointAgent t_table t_ruler queue gen batch_size = do
-  gs <- singlesFrom batch_size t_table gen
+pointAgent t_vect t_ruler queue gen batch_size = do
+  vect <- readTVarIO t_vect
+  gs <- singlesFrom batch_size vect gen
   ps <- mapM (`point` gen) gs
   let !candidates = fmap fit ps
 
@@ -177,17 +183,18 @@ pointAgent t_table t_ruler queue gen batch_size = do
   when (score > min_score) $ do
     atomically $ writeTQueue queue best
 
-  pointAgent t_table t_ruler queue gen batch_size
+  pointAgent t_vect t_ruler queue gen batch_size
 
 crossAgent :: (Gen a, Ord (Score a))
-  => TVar (Table a)
+  => TVar (Vect.Vector a)       -- snapshot
   -> TVar (Score a)
   -> TQueue (Fen a (Score a))
   -> MWC.GenIO
   -> Int                        -- batch size
   -> IO ()
-crossAgent t_table t_ruler queue gen batch_size = do
-  gs <- pairsFrom batch_size t_table gen
+crossAgent t_vect t_ruler queue gen batch_size = do
+  vect <- readTVarIO t_vect
+  gs <- pairsFrom batch_size vect gen
   ps <- mapM (\(l, r) -> cross l r gen) gs
   let !candidates = fmap fit ps
 
@@ -198,6 +205,6 @@ crossAgent t_table t_ruler queue gen batch_size = do
   when (score > min_score) $ do
     atomically $ writeTQueue queue best
 
-  crossAgent t_table t_ruler queue gen batch_size
+  crossAgent t_vect t_ruler queue gen batch_size
 
 
