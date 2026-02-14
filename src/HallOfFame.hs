@@ -114,7 +114,7 @@ evolve = do
   _t0 <- liftIO . forkIO $ table_agent 
   
   let threads = 3
-  let batch_size = threads*n
+  let batch_size = threads*n*threads
   replicateM_ threads $ do 
       gen <- MWC.createSystemRandom
       forkIO $ pointAgent t_vect t_ruler  inserterq gen batch_size
@@ -178,14 +178,17 @@ pointAgent t_vect t_ruler queue gen batch_size = do
   vect <- readTVarIO t_vect
   gs <- singlesFrom batch_size vect gen
   ps <- mapM (`point` gen) gs
-  let !candidates = fmap fit ps
-
-  let best@(Fen _ score) = 
-        Vect.maximumBy (\(Fen _ l) (Fen _ r) -> compare l r) candidates
-
   !min_score <- readTVarIO t_ruler
-  when (score > min_score) $ do
-    atomically $ writeTQueue queue best
+
+  let !candidates = fmap fit ps -- TODO: try with lazy enable
+      !approveds  = Vect.filter 
+        (\(Fen _ s) -> s > min_score) 
+        candidates 
+
+  atomically . void $ forM approveds $ \fen@(Fen _ s) -> do 
+    when (s > min_score) $ 
+      writeTQueue queue fen
+
 
   pointAgent t_vect t_ruler queue gen batch_size
 
@@ -200,14 +203,17 @@ crossAgent t_vect t_ruler queue gen batch_size = do
   vect <- readTVarIO t_vect
   gs <- pairsFrom batch_size vect gen
   ps <- mapM (\(l, r) -> cross l r gen) gs
-  let !candidates = fmap fit ps
-
-  let best@(Fen _ score) = 
-        Vect.maximumBy (\(Fen _ a) (Fen _ b) -> compare a b) candidates
 
   !min_score <- readTVarIO t_ruler
-  when (score > min_score) $ do
-    atomically $ writeTQueue queue best
+
+  let !candidates = fmap fit ps -- TODO: try with lazy enable
+      !approveds  = Vect.filter 
+        (\(Fen _ s) -> s > min_score) 
+        candidates 
+
+  atomically . void $ forM approveds $ \fen@(Fen _ s) -> do 
+    when (s > min_score) $ 
+      writeTQueue queue fen
 
   crossAgent t_vect t_ruler queue gen batch_size
 
