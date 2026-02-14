@@ -107,14 +107,17 @@ evolve = do
   let Indexed (_, !r) = Heap.minimum heap 
   t_ruler <- liftIO (newTVarIO r)
   t_vect <- liftIO (newTVarIO gs)
-  inserterq <- newTQueueIO -- (fromIntegral 10_0000)
+
+  let queueB = n -- `div` 2
+  let threads = 3
+  let batch_size = queueB `div` 2 --threads*n*threads
+
+  inserterq <- newTBQueueIO (fromIntegral queueB)
 
   let table_agent = tableAgent table t_vect t_ruler r inserterq 
 
   _t0 <- liftIO . forkIO $ table_agent 
   
-  let threads = 3
-  let batch_size = threads*n*threads
   replicateM_ threads $ do 
       gen <- MWC.createSystemRandom
       forkIO $ pointAgent t_vect t_ruler  inserterq gen batch_size
@@ -128,7 +131,7 @@ evolve = do
     t <- readTVarIO t_vect 
     let l = (fmap fit . Vect.toList) t
     let rv@(best:_) = List.sortOn (Data.Ord.Down . (\(Fen _ b) -> b)) l
-    -- let best = head . reverse $ List.sortOn (\(Fen _ b) -> b) l
+    let best = head . reverse $ List.sortOn (\(Fen _ b) -> b) l
     print . take 20 $ fmap (\(Fen _ b) -> b) rv
     -- putStrLn $ "queue length: " ++ show q_len
     putStrLn $ "----------------------------------------------------"
@@ -145,13 +148,13 @@ tableAgent :: (Eq a, Ord a, Gen a, Ord (Score a))
   -> TVar (Vect.Vector a)  -- snapshopt
   -> TVar (Score a)        -- ruler
   -> Score a  
-  -> TQueue (Fen a (Score a))
+  -> TBQueue (Fen a (Score a))
   -> IO ()
 
 tableAgent table t_vect t_ruler ruler queue = do
   fens <- atomically $ do
-     f <- readTQueue queue
-     r <- flushTQueue queue
+     f <- readTBQueue queue
+     r <- flushTBQueue queue
      pure (f:r)
 
   case filter (\(Fen _ s) -> s > ruler) fens of
@@ -162,6 +165,8 @@ tableAgent table t_vect t_ruler ruler queue = do
       snapshot <- Vect.freeze (vect table')
 
       atomically $ do
+        -- n <- lengthTBQueue queue
+        -- !_ <- pure . unsafePerformIO $ print n
         writeTVar t_vect snapshot
         writeTVar t_ruler ruler'
 
@@ -170,7 +175,7 @@ tableAgent table t_vect t_ruler ruler queue = do
 pointAgent :: (Gen a, Ord (Score a))
   => TVar (Vect.Vector a)       -- snapshot
   -> TVar (Score a)
-  -> TQueue (Fen a (Score a))
+  -> TBQueue (Fen a (Score a))
   -> MWC.GenIO
   -> Int                        -- batch size
   -> IO ()
@@ -187,7 +192,7 @@ pointAgent t_vect t_ruler queue gen batch_size = do
 
   atomically . void $ forM approveds $ \fen@(Fen _ s) -> do 
     when (s > min_score) $ 
-      writeTQueue queue fen
+      writeTBQueue queue fen
 
 
   pointAgent t_vect t_ruler queue gen batch_size
@@ -195,7 +200,7 @@ pointAgent t_vect t_ruler queue gen batch_size = do
 crossAgent :: (Gen a, Ord (Score a))
   => TVar (Vect.Vector a)       -- snapshot
   -> TVar (Score a)
-  -> TQueue (Fen a (Score a))
+  -> TBQueue (Fen a (Score a))
   -> MWC.GenIO
   -> Int                        -- batch size
   -> IO ()
@@ -213,7 +218,7 @@ crossAgent t_vect t_ruler queue gen batch_size = do
 
   atomically . void $ forM approveds $ \fen@(Fen _ s) -> do 
     when (s > min_score) $ 
-      writeTQueue queue fen
+      writeTBQueue queue fen
 
   crossAgent t_vect t_ruler queue gen batch_size
 
