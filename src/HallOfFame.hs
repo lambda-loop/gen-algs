@@ -95,7 +95,7 @@ type Pop a = StateT (Table a) IO a
 
 evolve :: forall a. (Eq a, Show a, Ord a, Gen a, Eq (Score a), Show (Score a), Ord (Score a)) => IO a
 evolve = do
-  let n = 100
+  let n = 500
   gs:: Vect.Vector a <- Vect.replicateM n new
 
   table@Table { heap } <- build gs
@@ -109,7 +109,7 @@ evolve = do
 
   _t0 <- liftIO . forkIO $ table_agent 
   
-  let threads = 4
+  let threads = 3
   let batch_size = threads*n
   replicateM_ threads $ do 
       gen <- MWC.createSystemRandom
