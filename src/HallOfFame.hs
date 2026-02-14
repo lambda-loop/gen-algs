@@ -22,13 +22,14 @@ import qualified Data.Foldable as Heap hiding (minimum)
 import qualified Data.List as List
 import qualified Data.Ord
 import qualified System.Random.MWC as MWC
+import GHC.IO.Unsafe (unsafePerformIO)
 
 -- TODO: type families for vectors with exact size?
 data Table a = Table
   { heap :: Heap.Heap (Indexed (Score a))
   , vect :: MVec.IOVector a
   , set  :: Set.Set a
-  } -- deriving (Show) 
+  } -- deriving (Show) -- TODO: use the Heap to check instead of having a whole Set..
 
 tMin :: Table a -> (Score a, Table a)
 tMin t = 
@@ -75,13 +76,16 @@ build vec = do
     set  = Set.fromList gs
   }
 
-insert :: (Gen a, Ord a, Ord (Score a)) => Table a -> Fen a (Score a) -> IO (Table a)
+insert :: (Gen a, Ord a, Ord (Score a)) => Table a -> Fen a (Score a) -> STM (Table a)
 insert t@Table {..} (Fen x score) 
   | x `Set.member` set = pure t
   | otherwise = do
     let Indexed (!min_idx, _) = Heap.minimum heap
-    !val <- MVec.read vect min_idx
-    MVec.write vect min_idx x 
+    !val <- pure . unsafePerformIO $ do 
+      val <- MVec.read vect min_idx
+      MVec.write vect min_idx x 
+      pure val
+
     let !set'   = Set.delete val set
         !heap'  = Heap.adjustMin (\_ -> Indexed (min_idx, score)) heap
 
@@ -95,7 +99,7 @@ type Pop a = StateT (Table a) IO a
 
 evolve :: forall a. (Eq a, Show a, Ord a, Gen a, Eq (Score a), Show (Score a), Ord (Score a)) => IO a
 evolve = do
-  let n = 500
+  let n = 100
   gs:: Vect.Vector a <- Vect.replicateM n new
 
   table@Table { heap } <- build gs
@@ -153,7 +157,7 @@ tableAgent table t_vect t_ruler ruler queue = do
   case filter (\(Fen _ s) -> s > ruler) fens of
     [] -> tableAgent table t_vect t_ruler ruler queue
     fens' -> do
-      table' <- foldM insert table fens'
+      table' <- atomically $ foldM insert table fens'
       let Indexed (_, !ruler') = Heap.minimum (heap table')
       snapshot <- Vect.freeze (vect table')
 
