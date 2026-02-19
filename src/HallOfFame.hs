@@ -97,10 +97,24 @@ insert t@Table {..} (Fen x score)
 
 type Pop a = StateT (Table a) IO a
 
+-- TODO: change this name..
+
+setup :: (Eq a, Show a, Ord a, Gen a, Eq (Score a), Ord (Score a)) => Int -> IO (Vect.Vector a)
+setup n = do
+  gs <- replicateM (n*100) new
+  pure $ gs |> fmap fit
+            |> List.sortOn (Data.Ord.Down . (\(Fen _ b) -> b))
+            |> fmap (\(Fen g _) -> g) 
+            |> take n
+            |> Vect.fromList 
+
+  where (|>) = flip ($)
+  
+
 evolve :: forall a. (Eq a, Show a, Ord a, Gen a, Eq (Score a), Show (Score a), Ord (Score a)) => IO a
 evolve = do
   let n = 100
-  gs:: Vect.Vector a <- Vect.replicateM n new
+  gs::Vect.Vector a <- setup n
 
   table@Table { heap } <- build gs
 
@@ -131,15 +145,15 @@ evolve = do
     t <- readTVarIO t_vect 
     let l = (fmap fit . Vect.toList) t
     let rv@(best:_) = List.sortOn (Data.Ord.Down . (\(Fen _ b) -> b)) l
-    let best = head . reverse $ List.sortOn (\(Fen _ b) -> b) l
-    print . take 20 $ fmap (\(Fen _ b) -> b) rv
-    -- putStrLn $ "queue length: " ++ show q_len
-    putStrLn $ "----------------------------------------------------"
     when (done best) $ do
       print "done"
       print best
       -- forM_ [t0,t1,{-t2,{-t3,t4,-} t5, -}t6] killThread
       exitSuccess
+    -- let (best:_) = List.sortOn (\(Fen _ b) -> b) l
+    putStrLn $ "----------------------------------------------------"
+    print . take 20 $ fmap (\(Fen _ b) -> b) rv
+    -- putStrLn $ "queue length: " ++ show q_len
 
   exitFailure
 
