@@ -1,10 +1,9 @@
-{-# LANGUAGE AllowAmbiguousTypes #-}
-{-# OPTIONS_GHC -Wno-orphans #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE UndecidableInstances #-} -- :P
 
-module HallOfFame where
+module Strategy.HallOfFame where
 
-import Gen
+import Genome
 
 import Control.Monad
 import Control.Monad.State.Strict
@@ -16,31 +15,36 @@ import System.Exit
 import qualified Data.Heap as Heap
 import qualified Data.Vector.Strict as Vect -- TODO: delete_it
 import qualified Data.Vector.Strict.Mutable as MVec
-import qualified Data.Set as Set
 import qualified Data.Foldable as Heap hiding (minimum)
 
 import qualified Data.List as List
 import qualified Data.Ord
 import qualified System.Random.MWC as MWC
 import GHC.IO.Unsafe (unsafePerformIO)
+import qualified Data.Set as Set
+
+
+newtype Indexed a = Indexed (Int, a)
+  deriving (Eq, Show)
+
+instance Ord b => Ord (Indexed b) where
+  Indexed (_, l) `compare` Indexed (_, r) = l `compare` r
 
 -- TODO: type families for vectors with exact size?
 data Table a = Table
-  { heap :: Heap.Heap (Indexed (Score a))
+  { heap :: Heap.Heap (Indexed (Score a)) 
   , vect :: MVec.IOVector a
   , set  :: Set.Set a
-  } -- deriving (Show) -- TODO: use the Heap to check instead of having a whole Set..
+  --, TODO: back with the HASHSET STRUCTURE PLEASE!! Or change the heap to a binary search heap!
+  } 
+
+instance (Show a, Show (Score a)) => Show (Table a) where
+  show Table {..} = show heap
 
 tMin :: Table a -> (Score a, Table a)
 tMin t = 
   let Indexed (_, !min_score) = Heap.minimum (heap t)
   in (min_score, t)
-
-tMax :: (Eq (Score a), Ord (Score a)) => Table a -> (Indexed (Score a), Table a)
-tMax t = (Heap.maximum (heap t), t)
-
--- idx :: Int -> Table a -> a
--- idx i = (Vect.! i) . vect
 
 -- N Times :P 
 singlesFrom :: Int -> Vect.Vector a -> MWC.GenIO -> IO (Vect.Vector a)
@@ -57,13 +61,7 @@ pairsFrom n v gen = do
   js <- Vect.replicateM n $ MWC.uniformR (0, v_len - 1) gen
   pure $ Vect.zipWith (\i j -> (v Vect.! i, v Vect.! j)) is js
 
-newtype Indexed b = Indexed (Int, b)
-  deriving (Eq)
-
-instance Ord b => Ord (Indexed b) where
-  Indexed (_, l) `compare` Indexed (_, r) = l `compare` r
-
-build :: forall a. (Gen a, Ord a, Ord (Score a)) => Vect.Vector a -> IO (Table a)
+build :: forall a. (Genome a, Ord a, Ord (Score a)) => Vect.Vector a -> IO (Table a)
 build vec = do
   m_vec <- Vect.thaw vec
   let !fens = fit <$> Vect.toList vec
@@ -76,30 +74,34 @@ build vec = do
     set  = Set.fromList gs
   }
 
-insert :: (Gen a, Ord a, Ord (Score a)) => Table a -> Fen a (Score a) -> STM (Table a)
+insert :: (Genome a, Ord a, Ord (Score a)) => Table a -> Fen a (Score a) -> IO (Table a)
 insert t@Table {..} (Fen x score) 
   | x `Set.member` set = pure t
   | otherwise = do
-    let Indexed (!min_idx, _) = Heap.minimum heap
-    !val <- pure . unsafePerformIO $ do 
-      val <- MVec.read vect min_idx
-      MVec.write vect min_idx x 
-      pure val
+    let Indexed (!min_idx, min_score) = Heap.minimum heap
 
-    let !set'   = Set.delete val set
-        !heap'  = Heap.adjustMin (\_ -> Indexed (min_idx, score)) heap
+    if score < min_score then pure t
+    else do
+      !val <- do 
+        val <- MVec.read vect min_idx
+        MVec.write vect min_idx x 
+        pure val
 
-    pure $ Table {
-      heap = heap',
-      vect = vect,
-      set  = Set.insert x set'
-    }
+      let !set'   = Set.delete val set
+          !heap' = Heap.deleteMin heap 
+          !heap''= Heap.insert (Indexed (min_idx, score)) heap'
+
+      pure $ Table {
+        heap = heap'',
+        vect = vect,
+        set  = Set.insert x set'
+      }
 
 type Pop a = StateT (Table a) IO a
 
 -- TODO: change this name..
 
-setup :: (Eq a, Show a, Ord a, Gen a, Eq (Score a), Ord (Score a)) => Int -> IO (Vect.Vector a)
+setup :: (Eq a, Show a, Ord a, Genome a, Eq (Score a), Ord (Score a)) => Int -> IO (Vect.Vector a)
 setup n = do
   gs <- replicateM (n*100) new
   pure $ gs |> fmap fit
@@ -109,9 +111,8 @@ setup n = do
             |> Vect.fromList 
 
   where (|>) = flip ($)
-  
 
-evolve :: forall a. (Eq a, Show a, Ord a, Gen a, Eq (Score a), Show (Score a), Ord (Score a)) => IO a
+evolve :: forall a. (Eq a, Show a, Ord a, Genome a, Eq (Score a), Show (Score a), Ord (Score a)) => IO a
 evolve = do
   let n = 100
   gs::Vect.Vector a <- setup n
@@ -157,7 +158,7 @@ evolve = do
 
   exitFailure
 
-tableAgent :: (Eq a, Ord a, Gen a, Ord (Score a))
+tableAgent :: (Eq a, Ord a, Genome a, Ord (Score a))
   => Table a             
   -> TVar (Vect.Vector a)  -- snapshopt
   -> TVar (Score a)        -- ruler
@@ -174,7 +175,7 @@ tableAgent table t_vect t_ruler ruler queue = do
   case filter (\(Fen _ s) -> s > ruler) fens of
     [] -> tableAgent table t_vect t_ruler ruler queue
     fens' -> do
-      table' <- atomically $ foldM insert table fens'
+      table' <- foldM insert table fens'
       let Indexed (_, !ruler') = Heap.minimum (heap table')
       snapshot <- Vect.freeze (vect table')
 
@@ -186,7 +187,7 @@ tableAgent table t_vect t_ruler ruler queue = do
 
       tableAgent table' t_vect t_ruler ruler' queue
 
-pointAgent :: (Gen a, Ord (Score a))
+pointAgent :: (Genome a, Ord (Score a))
   => TVar (Vect.Vector a)       -- snapshot
   -> TVar (Score a)
   -> TBQueue (Fen a (Score a))
@@ -211,7 +212,7 @@ pointAgent t_vect t_ruler queue gen batch_size = do
 
   pointAgent t_vect t_ruler queue gen batch_size
 
-crossAgent :: (Gen a, Ord (Score a))
+crossAgent :: (Genome a, Ord (Score a))
   => TVar (Vect.Vector a)       -- snapshot
   -> TVar (Score a)
   -> TBQueue (Fen a (Score a))
@@ -235,5 +236,6 @@ crossAgent t_vect t_ruler queue gen batch_size = do
     writeTBQueue queue fen
 
   crossAgent t_vect t_ruler queue gen batch_size
+
 
 

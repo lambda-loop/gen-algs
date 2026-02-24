@@ -1,11 +1,8 @@
-module IslandModel where
+module Strategy.IslandModel where
 
+import Genome
+import Strategy.HallOfFame hiding (evolve) 
 
--- internal
-import Gen
-import HallOfFame hiding (evolve) --pointAgent, crossAgent)
-
--- external
 import qualified Data.Heap as Heap
 import qualified Data.Vector.Strict as Vec -- TODO: delete_it
 import qualified Data.Vector.Strict.Mutable as MVec
@@ -21,7 +18,7 @@ import Control.Monad
 import Control.Concurrent
 import System.Exit
 
-evolve :: forall a. (Eq a, Show a, Ord a, Gen a, Eq (Score a), Show (Score a), Ord (Score a)) 
+evolve :: forall a. (Eq a, Show a, Ord a, Genome a, Eq (Score a), Show (Score a), Ord (Score a)) 
   => Int     -- ^. number of islands
   -> Int     -- ^. population per island
   -> Int     -- ^. agents pairs per island (threads/2)
@@ -31,10 +28,6 @@ evolve nI popI agentsI = do
       batch_size   = popI
       travel_batch = popI 
       sub_elite    = popI `div` nI
-      -- queueB       = popI `div` nI
-      -- batch_size   = queueB `div` 2
-      -- travel_batch = batch_size `div` popI
-      -- sub_elite    = popI `div` nI
 
   islands <- Vec.replicateM nI (setup popI)
   qs <- Vec.forM islands $ \(gs::Vec.Vector a) -> do
@@ -78,7 +71,7 @@ evolve nI popI agentsI = do
 spawnAgents :: undefined
 spawnAgents = undefined
 
-mkAgentCtx :: forall a. (Eq a, Show a, Ord a, Gen a, Eq (Score a), Show (Score a), Ord (Score a)) 
+mkAgentCtx :: forall a. (Eq a, Show a, Ord a, Genome a, Eq (Score a), Show (Score a), Ord (Score a)) 
   => TBQueue (Fen a (Score a))
   -> Vec.Vector a -> IO (AgentCtx a, Table a, Score a)
 mkAgentCtx queue v = do
@@ -94,7 +87,7 @@ data AgentCtx a = AgentCtx
   { queue    :: TBQueue (Fen a (Score a))  -- island
   , snapshot :: TVar (Vec.Vector a)        -- snapshot 
   , t_ruler  :: TVar (Score a)             -- ruler
-  } -- deriving (Eq, Show)
+  } 
 
 pairsFrom' 
   :: Int 
@@ -110,7 +103,7 @@ pairsFrom' n vl vr gen = do
   js <- Vec.replicateM n $ MWC.uniformR (0, vr_len - 1) gen
   pure $ Vec.zipWith (\i j -> (vl Vec.! i, vr Vec.! j)) is js
 
-travelAgent :: (Gen a, Ord (Score a))
+travelAgent :: (Genome a, Ord (Score a))
   => Vec.Vector (AgentCtx a)
   -> MWC.GenIO
   -> Int       -- batch size
@@ -140,58 +133,7 @@ travelAgent agents_ctx gen batch_size sub_elite_size = do
       -- when (s > min_score) $ 
       writeTBQueue (queue agent_r) fen
 
-  error "xique xique bahia"
+  error "unreachable state in travel agent!"
   -- travelAgent agents_ctx gen batch_size sub_elite_size
 
 
--- pointAgent :: (Gen a, Ord (Score a))
---   => TVar (Vec.Vector a)       -- snapshot
---   -> TVar (Score a)
---   -> TBQueue (Fen a (Score a))
---   -> MWC.GenIO
---   -> Int                        -- batch size
---   -> IO ()
--- pointAgent t_vect t_ruler queue gen batch_size = do
---   vect <- readTVarIO t_vect
---   gs   <- singlesFrom batch_size vect gen
---   ps   <- mapM (`point` gen) gs
---   !min_score <- readTVarIO t_ruler
---
---   let !candidates = fmap fit ps -- TODO: try with lazy enable
---       !approveds  = Vec.filter 
---         (\(Fen _ s) -> s > min_score) 
---         candidates 
---
---   atomically . void $ forM approveds $ \fen@(Fen _ s) -> do 
---     when (s > min_score) $ 
---       writeTBQueue queue fen
---
---
---   pointAgent t_vect t_ruler queue gen batch_size
---
--- crossAgent :: (Gen a, Ord (Score a))
---   => TVar (Vec.Vector a)       -- snapshot
---   -> TVar (Score a)
---   -> TBQueue (Fen a (Score a))
---   -> MWC.GenIO
---   -> Int                        -- batch size
---   -> IO ()
--- crossAgent t_vect t_ruler queue gen batch_size = do
---   vect <- readTVarIO t_vect
---   gs <- pairsFrom batch_size vect gen
---   ps <- mapM (\(l, r) -> cross l r gen) gs
---
---   !min_score <- readTVarIO t_ruler
---
---   let !candidates = fmap fit ps -- TODO: try with lazy enable
---       !approveds  = Vec.filter 
---         (\(Fen _ s) -> s > min_score) 
---         candidates 
---
---   atomically . void $ forM approveds $ \fen@(Fen _ s) -> do 
---     when (s > min_score) $ 
---       writeTBQueue queue fen
---
---   crossAgent t_vect t_ruler queue gen batch_size
---
---
