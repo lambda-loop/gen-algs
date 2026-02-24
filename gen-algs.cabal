@@ -70,6 +70,12 @@ executable gen-algs
       -- examples:
       Polynomial.Expr,
 
+      Ant.Dna, 
+        Ant.Board.Dir,
+        Ant.Board.Compass,
+        Ant.Board.Pos2D
+        
+
 
 
     -- LANGUAGE extensions used by modules in this package.
@@ -87,6 +93,9 @@ executable gen-algs
                     , stm
 
                     , mwc-random
+                    
+                    -- for animations:
+                    , brick
 
     -- Directories containing source files.
     hs-source-dirs:   src, lib, examples
