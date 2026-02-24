@@ -81,7 +81,7 @@ hard = term4 ++ term3 ++ [Sub] ++ term2 ++ [Add] ++ term1 ++ [Sub] ++ term0 ++ [
 -- hard: 23x⁴ - 12x³ + 6x² - 8x + 37
 -- answer = easy 
 answer :: Genome
-answer = easy
+answer = hard
 answerSize = length answer
 
 
@@ -209,12 +209,12 @@ expected = fromList [(i, aux i) | i :: Int <- is]
         
 -- standart derivation
 fitness :: Genome -> (Genome, Double)
-fitness genome = adjust . sum . fmap (**2) <$> do 
+fitness genome = adjust . sqrt . (/(len-1)) . sum . fmap (**2) <$> do 
   forM is $ \i -> do
     let out_i = foo genome (fromIntegral i) []
     pure (out_i - expected ! i)
-  where len = length genome
-        tax = fromIntegral len * 0.001
+  where len = fromIntegral (length genome)
+        tax = len * 0.001
         adjust x = x + (x * tax)
 
 -- is = [-100 .. 100]

@@ -10,6 +10,7 @@ import qualified Data.Heap as Heap
 import System.Random
 import Gen
 import HallOfFame
+import qualified IslandModel as IM
 import Control.Monad.State (evalStateT)
 import qualified Dna0.Repr as Dna0
 import qualified Dna0.Fit as Dna0
@@ -24,7 +25,8 @@ main = do
   -- a :: Word <- evolve -- (Heap.empty :: Heap.Heap (Fen Word Int))
   -- (a::Dna0.Expr) <- evolve --(Heap.empty :: Heap.Heap (Fen Dna0.Expr (Down Double)))
   -- a::FastTree <- evolve -- (Heap.empty :: Heap.Heap (Fen FastTree (Down Double)))
-  a :: Genome <- evolve 
+  -- a :: Genome <- evolve 
+  a :: Genome <- IM.evolve 3 50 2
   -- a <- evalStateT evolve (Heap.empty :: Heap.Heap (Fen Genome (Down Double)))
   print a
 

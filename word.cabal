@@ -62,7 +62,7 @@ executable word
     main-is:          Main.hs
 
     -- Modules included in this executable, other than Main.
-    other-modules: Gen, HallOfFame
+    other-modules: Gen, HallOfFame, IslandModel
       , Data.BinTree, Data.FlatTree
       , Dna0.Fit, Dna0.Mut, Dna0.Repr
       , Dna1.Fit, Dna1.Mut, Dna1.Repr

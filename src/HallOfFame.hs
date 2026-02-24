@@ -49,7 +49,7 @@ singlesFrom n v gen = do
   is <- Vect.replicateM n $ MWC.uniformR (0, v_len - 1) gen
   pure $ Vect.map (v Vect.!) is
 
--- N Times :P
+-- N Times :r
 pairsFrom :: Int -> Vect.Vector a -> MWC.GenIO -> IO (Vect.Vector (a, a))
 pairsFrom n v gen = do
   let v_len = Vect.length v
@@ -119,8 +119,8 @@ evolve = do
   table@Table { heap } <- build gs
 
   let Indexed (_, !r) = Heap.minimum heap 
-  t_ruler <- liftIO (newTVarIO r)
-  t_vect <- liftIO (newTVarIO gs)
+  t_ruler <- newTVarIO r
+  t_vect <- newTVarIO gs
 
   let queueB = n -- `div` 2
   let threads = 3
@@ -204,9 +204,9 @@ pointAgent t_vect t_ruler queue gen batch_size = do
         (\(Fen _ s) -> s > min_score) 
         candidates 
 
-  atomically . void $ forM approveds $ \fen@(Fen _ s) -> do 
-    when (s > min_score) $ 
-      writeTBQueue queue fen
+  atomically $ forM_ approveds $ \fen@(Fen _ s) -> do 
+    -- when (s > min_score) $ 
+    writeTBQueue queue fen
 
 
   pointAgent t_vect t_ruler queue gen batch_size
@@ -230,9 +230,9 @@ crossAgent t_vect t_ruler queue gen batch_size = do
         (\(Fen _ s) -> s > min_score) 
         candidates 
 
-  atomically . void $ forM approveds $ \fen@(Fen _ s) -> do 
-    when (s > min_score) $ 
-      writeTBQueue queue fen
+  atomically $ forM_ approveds $ \fen@(Fen _ s) -> do 
+    -- when (s > min_score) $ 
+    writeTBQueue queue fen
 
   crossAgent t_vect t_ruler queue gen batch_size
 

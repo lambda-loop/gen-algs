@@ -6,10 +6,12 @@
 module Gen where
 
 import qualified System.Random.MWC as MWC
+import Control.Concurrent.STM (TVar)
 
 class Gen a where
   type Score a
   fit   :: a -> Fen a (Score a)
+  fitC  :: Maybe (TVar (a -> Fen a (Score a)))
 
   -- TODO: implement it
   -- nularys :: [IO a]
