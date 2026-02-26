@@ -15,7 +15,7 @@ import Ant.Board.Dir (Dir (Up))
 
 data Ant = Ant
   { ant_pos     :: Pos2D
-  , ant_score   :: Int
+  -- , ant_score   :: Int
   , ant_steps   :: Int
   , ant_mind    :: Mind
   , current_dir :: Dir
@@ -31,6 +31,7 @@ data State = State
   , player :: Ant
   , blocks :: Vec.Vector Pos2D
   , foods  :: Vec.Vector Pos2D
+  , score  :: Int
   , gen    :: MWC.GenIO
   } -- deriving (Eq, Show)
 

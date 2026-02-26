@@ -14,7 +14,6 @@ import qualified Ant.World.State as World
 import qualified Ant.World.Flow as World.Flow
 import Ant.Dna (Mind(..))
 import qualified System.Random.MWC as MWC
-import GHC.IO (unsafePerformIO)
 import Ant.Rand
 
 bounds :: Int
@@ -27,21 +26,28 @@ blocks' = List.nub
        ++ [Pos2D (i, bounds)| i <- [0..bounds]]
        ++ [Pos2D (bounds, i)| i <- [0..bounds]]
 
-initialState :: World.State
-initialState =
+initialState :: MWC.GenIO -> Mind -> IO World.State
+initialState gen ant_mind = do
+  -- ant_mind <- randMind 
+  more_blocks <- Vec.replicateM 30 $ do
+    i <- MWC.uniformR (1, 29) gen   -- WARNING: magic values
+    j <- MWC.uniformR (1, 29) gen  -- WARNING: magic values
+    pure $ Pos2D (i, j)
+  let p = Pos2D (bounds`div`2, bounds`div`2)
   let ant = World.Ant 
-        { ant_pos = Pos2D (bounds`div`2, bounds`div`2)
-        , ant_score   = 0
+        { ant_pos = p 
+        -- , ant_score   = 0
         , ant_steps   = 0
-        , ant_mind    = unsafePerformIO randMind
+        , ant_mind    = ant_mind
         , current_dir = Up } -- TODO: not randomiztn
       blocks_ = blocks'
-  in World.State 
+  pure World.State 
     { status = World.Running
     , player = ant
-    , blocks = Vec.fromList blocks_
-    , foods  = Vec.empty 
-    , gen    = unsafePerformIO MWC.create }
+    , score  = 0
+    , blocks = Vec.filter (/= p) $ Vec.fromList blocks_ Vec.++ more_blocks
+    , foods  = Vec.empty
+    , gen    = gen }
 
 
 tileSize :: Float
@@ -68,7 +74,12 @@ modelPainter World.State {..} = do
 updateModel :: ViewPort -> Float -> World.State -> IO World.State
 updateModel _ _ = World.Flow.step
 
-runTest = simulateIO FullScreen black 60 initialState modelPainter updateModel
+runTest :: IO ()
+runTest = do 
+  gen <- MWC.createSystemRandom
+  ant_mind <- randMind gen
+  state₀ <- initialState gen ant_mind
+  simulateIO FullScreen black 60 state₀ modelPainter updateModel
 
 
 -- -> (model -> Picture)	

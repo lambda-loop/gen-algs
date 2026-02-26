@@ -12,7 +12,6 @@ import qualified Data.Foldable as Heap hiding (minimum)
 import qualified Data.List as List
 import qualified Data.Ord
 import qualified System.Random.MWC as MWC
-import GHC.IO.Unsafe (unsafePerformIO)
 import Control.Concurrent.STM
 import Control.Monad
 import Control.Concurrent

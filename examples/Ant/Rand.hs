@@ -74,9 +74,8 @@ randDecisionTree gen = do
   t_length <- uniformR (10, 30) gen
   Vec.replicateM t_length (randGene gen)
 
-randMind :: IO Mind
-randMind = do 
-  gen <- create
+randMind :: GenIO -> IO Mind
+randMind gen = do 
   t1  <- randDecisionTree gen
   t2  <- randDecisionTree gen 
 
