@@ -5,7 +5,16 @@ import Ant.Board.Compass (Compass(..))
 import qualified Ant.Board.Dir as Dir
 
 newtype Pos2D = Pos2D (Int, Int)
+  deriving (Eq)
 
+instance Show Pos2D where
+  -- show (Pos2D (x, y)) = 
+  --   "{x: " ++  show x ++
+  --   ", " ++ "y: " ++  show y ++ "}"
+  show (Pos2D (x, y)) = 
+    "(" ++ show x  
+    ++ "," ++ show y ++ ")"
+    
 distanceTo :: Pos2D -> Pos2D -> Double
 distanceTo (Pos2D (x₀, y₀)) (Pos2D (x₁, y₁)) = 
   (sqrt . fromIntegral) (dx*dx + dy*dy) 

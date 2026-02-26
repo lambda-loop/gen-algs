@@ -70,10 +70,15 @@ executable gen-algs
       -- examples:
       Polynomial.Expr,
 
-      Ant.Dna, 
+      Ant.Dna, Ant.Scanner,
         Ant.Board.Dir,
         Ant.Board.Compass,
-        Ant.Board.Pos2D
+        Ant.Board.Pos2D,
+        
+        Ant.World.State,
+        Ant.World.Flow,
+        Ant.World.Screen,
+        Ant.World.Decision,
         
 
 
@@ -96,6 +101,8 @@ executable gen-algs
                     
                     -- for animations:
                     , brick
+                    -- just while brick still not well configured
+                    , gloss, 
 
     -- Directories containing source files.
     hs-source-dirs:   src, lib, examples
