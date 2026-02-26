@@ -54,8 +54,9 @@ modelPainter World.State {..} = do
       ant     = putTile red    $  World.ant_pos player 
 
   pure . pictures $
-    ant : Vec.toList blocks' 
-       ++ Vec.toList foods'
+    Vec.toList blocks' 
+    ++ Vec.toList foods'
+    ++ [ant]
   where 
     putTile c (Pos2D (x, y)) =
       color c . translate (x'*tileSize) (y'*tileSize)
