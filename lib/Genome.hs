@@ -14,7 +14,6 @@ class Genome a where
   point :: a -> MWC.GenIO -> IO a 
   cross :: a -> a -> MWC.GenIO -> IO a
 
-  type Painter a
   paint :: [Fen a (Score a)] -> IO ()
 
 instance (Eq a, Ord b) => Ord (Fen a b) where
