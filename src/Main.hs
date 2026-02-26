@@ -7,8 +7,8 @@ import Ant.World.Screen (runTest)
 
 main :: IO ()
 main = do
-  -- a :: Expr <- IM.evolve 5 20 2
+  a :: Expr <- IM.evolve 5 20 2
   -- a :: Expr <- HF.evolve 
-  -- print a
-  runTest
+  print a
+  -- runTest
   

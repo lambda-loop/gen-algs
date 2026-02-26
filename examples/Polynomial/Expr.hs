@@ -52,10 +52,10 @@ eval  (Mul:gs) inp (x:y:stack) = eval gs inp (y*x:stack)
 instance Genome Expr where
   type Score Expr = Down Double
 
-  fit :: Expr -> Fen Expr (Score Expr)
+  fit :: Expr -> IO (Fen Expr (Score Expr))
   fit expr = 
     let (g, s) = fitness expr in
-      Fen g (Down s)
+      pure $ Fen g (Down s)
 
   done :: Fen Expr (Score Expr) -> Bool
   done (Fen _ score) = score == 0.0

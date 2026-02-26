@@ -63,8 +63,8 @@ pairsFrom n v gen = do
 build :: forall a. (Genome a, Ord a, Ord (Score a)) => Vect.Vector a -> IO (Table a)
 build vec = do
   m_vec <- Vect.thaw vec
-  let !fens = fit <$> Vect.toList vec
-      !(gs, ss) = List.unzip $ (\(Fen g s) -> (g, s)) <$> fens
+  !fens <- fit `mapM` Vect.toList vec
+  let !(gs, ss) = List.unzip $ (\(Fen g s) -> (g, s)) <$> fens
       !i_ss::[Indexed (Score a)] = Indexed <$> zip [0..] ss
 
   pure $ Table {
@@ -103,11 +103,11 @@ type Pop a = StateT (Table a) IO a
 setup :: (Eq a, Show a, Ord a, Genome a, Eq (Score a), Ord (Score a)) => Int -> IO (Vect.Vector a)
 setup n = do
   gs <- replicateM (n*100) new
-  pure $ gs |> fmap fit
-            |> List.sortOn (Data.Ord.Down . (\(Fen _ b) -> b))
-            |> fmap (\(Fen g _) -> g) 
-            |> take n
-            |> Vect.fromList 
+  gs |> mapM fit 
+     |> fmap (List.sortOn (Data.Ord.Down . (\(Fen _ b) -> b)))
+     |> (fmap . fmap) (\(Fen g _) -> g) 
+     |> fmap (take n)
+     |> fmap Vect.fromList 
 
   where (|>) = flip ($)
 
@@ -143,7 +143,7 @@ evolve = do
   _ <- liftIO . forever $ do
     -- threadDelay 1_000_000
     t <- readTVarIO t_vect 
-    let l = (fmap fit . Vect.toList) t
+    l <- (mapM fit . Vect.toList) t
     let rv@(best:_) = List.sortOn (Data.Ord.Down . (\(Fen _ b) -> b)) l
     when (done best) $ do
       print "done"
@@ -199,8 +199,8 @@ pointAgent t_vect t_ruler queue gen batch_size = do
   ps <- mapM (`point` gen) gs
   !min_score <- readTVarIO t_ruler
 
-  let !candidates = fmap fit ps -- TODO: try with lazy enable
-      !approveds  = Vect.filter 
+  !candidates <- mapM fit ps -- TODO: try with lazy enable
+  let !approveds  = Vect.filter 
         (\(Fen _ s) -> s > min_score) 
         candidates 
 
@@ -225,8 +225,8 @@ crossAgent t_vect t_ruler queue gen batch_size = do
 
   !min_score <- readTVarIO t_ruler
 
-  let !candidates = fmap fit ps -- TODO: try with lazy enable
-      !approveds  = Vect.filter 
+  !candidates <- mapM fit ps -- TODO: try with lazy enable
+  let !approveds  = Vect.filter 
         (\(Fen _ s) -> s > min_score) 
         candidates 
 

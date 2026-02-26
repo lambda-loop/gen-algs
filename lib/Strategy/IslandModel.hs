@@ -54,7 +54,7 @@ evolve nI popI agentsI = do
     let t_vect = snapshot ag
 
     t <- readTVarIO t_vect 
-    let l = (fmap fit . Vec.toList) t
+    l <- (mapM fit . Vec.toList) t
     let rv@(best:_) = List.sortOn (Data.Ord.Down . (\(Fen _ b) -> b)) l
     when (done best) $ do
       print "done"
@@ -123,8 +123,8 @@ travelAgent agents_ctx gen batch_size sub_elite_size = do
 
     !min_score <- readTVarIO (t_ruler agent_r)
 
-    let !candidates = fmap fit couples' 
-        !approveds  = Vec.take sub_elite_size $ Vec.filter 
+    !candidates <- mapM fit couples' 
+    let !approveds  = Vec.take sub_elite_size $ Vec.filter 
           (\(Fen _ s) -> s > min_score) 
           candidates 
     

@@ -34,8 +34,6 @@ step s
               | otherwise = status s 
       fs = foods s
        
-      -- TODO: missing food processing
-        -- if pos' `Vec.elem` foods
       in do
       foods' <- do 
         if ant_steps `rem` 20 /= 0 then pure fs -- WARNING: magic values
