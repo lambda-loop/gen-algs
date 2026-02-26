@@ -31,12 +31,6 @@ step s = do
       -- if pos' `Vec.elem` foods
       pure s { player = ant' }
 
-  
-    
-      
-  
-
-
 after :: (Pos2D, Dir.Dir) -> Move -> (Pos2D, Dir.Dir)
 (pos, dir) `after` move = 
   let 

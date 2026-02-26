@@ -15,9 +15,5 @@ type DecisionTree = Vec.Vector Gene
 data Mind = Mind
   { shouldKeepGoing :: DecisionTree
   , shouldTurnLeft  :: DecisionTree
-
   } deriving (Show, Eq, Ord)
-
-
-
 

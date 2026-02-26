@@ -13,6 +13,9 @@ import Ant.Board.Dir (Dir (Up))
 import qualified Ant.World.State as World
 import qualified Ant.World.Flow as World.Flow
 import Ant.Dna (Mind(..))
+import qualified System.Random.MWC as MWC
+import GHC.IO (unsafePerformIO)
+import Ant.Rand
 
 bounds :: Int
 bounds = 30
@@ -24,21 +27,22 @@ blocks' = List.nub
        ++ [Pos2D (i, bounds)| i <- [0..bounds]]
        ++ [Pos2D (bounds, i)| i <- [0..bounds]]
 
-
 initialState :: World.State
 initialState =
-  let ant = World.Ant { ant_pos = Pos2D (bounds`div`2, bounds`div`2),
-                   ant_score = 0,
-                   ant_steps = 0,
-                   ant_mind = Mind 
-                    { shouldKeepGoing = Vec.empty
-                    , shouldTurnLeft  = Vec.empty },
-                   current_dir = Up } -- TODO: not randomiztn
+  let ant = World.Ant 
+        { ant_pos = Pos2D (bounds`div`2, bounds`div`2)
+        , ant_score   = 0
+        , ant_steps   = 0
+        , ant_mind    = unsafePerformIO randMind
+        , current_dir = Up } -- TODO: not randomiztn
       blocks_ = blocks'
-  in World.State { status = World.Running
-             , player = ant
-             , blocks = Vec.fromList blocks_
-             , foods  = Vec.empty }
+  in World.State 
+    { status = World.Running
+    , player = ant
+    , blocks = Vec.fromList blocks_
+    , foods  = Vec.empty 
+    , gen    = unsafePerformIO MWC.create }
+
 
 tileSize :: Float
 tileSize = 5--px 
