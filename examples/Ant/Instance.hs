@@ -28,13 +28,18 @@ instance Genome Mind where
   fit mind = do
     gen <- MWC.createSystemRandom
     -- scores <- replicateM 1 $ do 
-    s   <- initialState gen mind
-    s'  <- playWholeGame s
-    
-    let steps   = (ant_steps . player) s'
-        explr   = (explored_set . player) s'
-        score_s = toInteger $ (steps * length explr) + (2 ^ score s')
-    pure $ Fen ((ant_mind . player) s') score_s
+    let chances = 3
+    scores <- replicateM chances $ do 
+      s   <- initialState gen mind
+      s'  <- playWholeGame s
+      
+      let steps   = (ant_steps . player) s'
+          explr   = (explored_set . player) s'
+          score_s = toInteger $ length explr + (2 ^ score s')
+      pure score_s
+
+    let average_score = sum scores `div` fromIntegral chances
+    pure (Fen mind average_score)
 
     -- let rv@(best:_) = List.sortOn (Data.Ord.Down . (\(Fen _ b) -> b)) (scores)
     --
@@ -107,6 +112,6 @@ instance Genome Mind where
   -- type (Follower Mind) = TVar (Vec.Vector Mind)
   feedbacker :: IO (Vec.Vector Mind) -> IO ()
   feedbacker tVec = do
-    let model₀ = mkModel tVec
+    model₀ <- mkModel tVec
     simulateIO FullScreen black 120
       model₀ painter updater

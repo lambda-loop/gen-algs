@@ -1,6 +1,7 @@
 
 module Ant.Feedback where
 
+import qualified Data.Vector.Strict.Mutable as MVec
 import qualified Data.Vector.Strict as Vec
 import qualified Ant.World.State as World
 import Graphics.Gloss
@@ -17,34 +18,53 @@ import Control.Concurrent.STM
 
 data Model = Model 
   { sync   :: IO (Vec.Vector Mind)
-  , actual :: Vec.Vector World.State
+  , actual :: MVec.IOVector World.State
   }
 
-mkModel :: IO (Vec.Vector Mind) -> Model
-mkModel a_vec = Model 
-  { sync   = a_vec
-  , actual = Vec.empty
-  }
+mkModel :: IO (Vec.Vector Mind) -> IO Model
+mkModel a_minds = do
+  minds  <- a_minds
+  states <- Vec.forM minds setupMind
+  states'<- Vec.thaw states
+  pure Model 
+    { sync   = a_minds
+    , actual = states'
+    }
 
 statePainter :: Vec.Vector World.State -> IO Picture 
 statePainter = pictureStates 
 
 painter :: Model -> IO Picture
-painter = statePainter . actual
+painter model = do 
+  let mvec = actual model
+  vec <- Vec.freeze mvec
+  statePainter vec
 
 updater :: ViewPort -> Float -> Model -> IO Model
 updater _ _ model = do 
   let v = actual model
-  if stillRunning v then do
-    v' <- Vec.forM v step
-    pure model { actual = v'}
+  b <- stillRunning v
+  if b then do
+    MVec.iforM_ v $ \i _ -> do
+      MVec.modifyM v step i
+    pure model
+    -- v' <- Vec.forM v step
+    -- pure model { actual = v'}
   else do
     minds  <- sync model
     states <- Vec.forM minds setupMind
-    pure model { actual = states }
+    states'<- Vec.thaw states
+    pure model { actual = states' }
 
   where 
-    stillRunning = Vec.any ((== World.Running) . World.status) 
+    stillRunning v = do --Vec.any ((== World.Running) . World.status) 
+      let max_rounds::Int = 1_000 -- WARNING: magic value
+      -- BUG: will not work
+      s <- v `MVec.read` 0
+      let ant   = World.player s
+          steps = World.ant_steps ant
+      print steps
+      pure (steps < 1_001)
 
 -- -- TODO: additional informqation [Fen Mind Integer] 
 -- stageGames :: StateT (Vec.Vector World.State) IO ()

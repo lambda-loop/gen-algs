@@ -15,7 +15,13 @@ import qualified Data.Set as Set
 -- TODO: lenses when ;-;?
 step :: World.State -> IO World.State
 step s 
-  | itsOver s = pure s
+  -- WARNING: GAMBIARRA
+  | itsOver s = 
+    let ant    = player s
+        steps' = ant_steps ant + 1
+        ant'   = ant { ant_steps = steps' }
+    in pure (s { player = ant' })
+    
   | otherwise = do
     let Ant {..} = player s
 
