@@ -10,6 +10,7 @@ import qualified Ant.Board.Dir as Dir
 import Control.Monad
 import qualified Data.Vector.Strict as Vec
 import qualified System.Random.MWC as MWC
+import qualified Data.Set as Set
 
 -- TODO: lenses when ;-;?
 step :: World.State -> IO World.State
@@ -28,7 +29,8 @@ step s
         { ant_pos     = pos'
         , ant_steps   = ant_steps + 1
         , ant_mind    = ant_mind
-        , current_dir = dir' }
+        , current_dir = dir' 
+        , explored_set = pos' `Set.insert` explored_set }
 
       status' | pos' `Vec.elem` blocks s = Over
               | otherwise = status s 
@@ -36,7 +38,7 @@ step s
        
       in do
       foods' <- do 
-        if ant_steps `rem` 20 /= 0 then pure fs -- WARNING: magic values
+        if ant_steps `rem` 100 /= 0 then pure fs -- WARNING: magic values
         else Vec.snoc fs <$> foodGen fs (blocks s) pos' (gen s)
 
       let foods'' = Vec.filter (/= pos') foods'
@@ -61,8 +63,6 @@ step s
       i <- MWC.uniformR (1, 29) gen
       j <- MWC.uniformR (1, 29) gen
       pure $ Pos2D (i, j)
-      
-      
 
 
 after :: (Pos2D, Dir.Dir) -> Move -> (Pos2D, Dir.Dir)
@@ -93,3 +93,10 @@ steppingTo (Pos2D (x, y)) Dir.Up    = Pos2D (x, y+1)
 steppingTo (Pos2D (x, y)) Dir.Left  = Pos2D (x-1, y) 
 steppingTo (Pos2D (x, y)) Dir.Right = Pos2D (x+1, y) 
 steppingTo (Pos2D (x, y)) Dir.Down  = Pos2D (x, y-1) 
+
+playWholeGame :: World.State -> IO World.State
+playWholeGame s = do
+  s' <- step s
+  if status s' == Running then
+    playWholeGame s'
+  else pure s'

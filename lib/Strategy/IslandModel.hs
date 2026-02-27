@@ -16,6 +16,7 @@ import Control.Concurrent.STM
 import Control.Monad
 import Control.Concurrent
 import System.Exit
+import Control.Monad.State
 
 evolve :: forall a. (Eq a, Show a, Ord a, Genome a, Eq (Score a), Show (Score a), Ord (Score a)) 
   => Int     -- ^. number of islands
@@ -41,12 +42,24 @@ evolve nI popI agentsI = do
     replicateM_ agentsI $ do 
       gen <- MWC.createSystemRandom
       forkIO $ crossAgent snapshot t_ruler queue gen batch_size
-  
+
+    -- WARNING: in testing
+    -- BUG: working for only the last snapshot
     pure agent
 
   -- master (travelAgent)
   gen <- MWC.createSystemRandom
   void . forkIO $ travelAgent qs gen travel_batch sub_elite
+
+  let snapshots =  snapshot <$> qs
+  -- closure? 👀
+  let follower :: StateT (Vec.Vector a) IO (Vec.Vector a) = do
+        forM_ snapshots $ \snap -> do
+          v <- liftIO $ readTVarIO snap
+          modify (Vec.++ v)
+        get
+
+  feedbacker (execStateT follower Vec.empty )
 
   let ags' = cycle (Vec.toList qs)
   forM_ ags' $ \ag -> do

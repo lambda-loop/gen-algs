@@ -5,7 +5,7 @@ import Ant.Board.Compass (Compass(..))
 import qualified Ant.Board.Dir as Dir
 
 newtype Pos2D = Pos2D (Int, Int)
-  deriving (Eq)
+  deriving (Eq, Ord)
 
 instance Show Pos2D where
   -- show (Pos2D (x, y)) = 

@@ -72,6 +72,14 @@ deletionTest = do
   -- print (Vec.length v)
   -- (print . Vec.filter (>10)) (Vec.map Vec.length xs)
 
+defaultSingle :: Vec.Vector a -> MWC.GenIO -> IO a -> IO (Vec.Vector a)
+defaultSingle v gen ax = do
+  b <- MWC.uniform gen
+  if b then singlePoint v gen ax 
+  else do
+    b' <- MWC.uniform gen
+    if b' then singleInsert v gen ax
+          else singleDelete v gen 
 
 
 

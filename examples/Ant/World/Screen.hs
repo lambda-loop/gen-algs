@@ -15,6 +15,11 @@ import qualified Ant.World.Flow as World.Flow
 import Ant.Dna (Mind(..))
 import qualified System.Random.MWC as MWC
 import Ant.Rand
+import Control.Monad.State
+import Genome
+import Ant.World.Flow
+import Control.Monad
+import qualified Data.Set as Set
 
 bounds :: Int
 bounds = 30
@@ -39,13 +44,14 @@ initialState gen ant_mind = do
         -- , ant_score   = 0
         , ant_steps   = 0
         , ant_mind    = ant_mind
-        , current_dir = Up } -- TODO: not randomiztn
+        , current_dir = Up 
+        , explored_set = Set.empty } -- TODO: not randomiztn
       blocks_ = blocks'
   pure World.State 
     { status = World.Running
     , player = ant
     , score  = 0
-    , blocks = Vec.filter (/= p) $ Vec.fromList blocks_ Vec.++ more_blocks
+    , blocks = Vec.filter (/= p) $ Vec.fromList blocks_ -- Vec.++ more_blocks
     , foods  = Vec.empty
     , gen    = gen }
 
@@ -74,6 +80,8 @@ modelPainter World.State {..} = do
 updateModel :: ViewPort -> Float -> World.State -> IO World.State
 updateModel _ _ = World.Flow.step
 
+-- testing stuff: 
+
 runTest :: IO ()
 runTest = do 
   gen <- MWC.createSystemRandom
@@ -82,7 +90,3 @@ runTest = do
   simulateIO FullScreen black 60 state₀ modelPainter updateModel
 
 
--- -> (model -> Picture)	
--- A function to convert the model to a picture.
-
--- -> (ViewPort -> Float -> model -> model)

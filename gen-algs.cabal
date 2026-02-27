@@ -70,7 +70,7 @@ executable gen-algs
       -- examples:
       Polynomial.Expr,
 
-      Ant.Dna, Ant.Scanner, Ant.Rand,
+      Ant.Dna, Ant.Scanner, Ant.Rand, Ant.Instance, Ant.Feedback, 
         Ant.Board.Dir,
         Ant.Board.Compass,
         Ant.Board.Pos2D,

@@ -1,5 +1,6 @@
 
 module Ant.Feedback where
+
 import qualified Data.Vector.Strict as Vec
 import qualified Ant.World.State as World
 import Graphics.Gloss
@@ -10,17 +11,18 @@ import qualified System.Random.MWC as MWC
 import Graphics.Gloss.Data.ViewPort (ViewPort)
 import Ant.World.Flow
 
+import qualified Data.List as List
 import Control.Concurrent.STM
 -- import Genome
 
 data Model = Model 
-  { sync   :: TVar (Vec.Vector Mind)
+  { sync   :: IO (Vec.Vector Mind)
   , actual :: Vec.Vector World.State
   }
 
-mkModel :: TVar (Vec.Vector Mind) -> Model
-mkModel tVec = Model 
-  { sync   = tVec
+mkModel :: IO (Vec.Vector Mind) -> Model
+mkModel a_vec = Model 
+  { sync   = a_vec
   , actual = Vec.empty
   }
 
@@ -37,7 +39,7 @@ updater _ _ model = do
     v' <- Vec.forM v step
     pure model { actual = v'}
   else do
-    minds  <- readTVarIO (sync model)
+    minds  <- sync model
     states <- Vec.forM minds setupMind
     pure model { actual = states }
 
@@ -64,20 +66,26 @@ updater _ _ model = do
 --     stageGames 
 --
 
+-- WARNING:  AI Assisted
 pictureStates :: Vec.Vector World.State -> IO Picture
 pictureStates states = do
   pics <- Vec.forM states $ \state -> do
     modelPainter state
 
-  -- TODO: convert to a state based version 
-  -- with to improve perfm with vecs
-  let pics' = lazy (Vec.toList pics) 0
-  pure $ pictures pics'
-  where -- TODO: refactor to use tail recursion (good enough)
-    lazy [] _ = []
-    lazy (p:ps) acc = 
-      let acc' = acc + 31 in
-      translate acc' 0 p : lazy ps acc'
+  let cols = 5 * 2   
+      hSpacing = 200
+      vSpacing = 200
+
+      picsList = Vec.toList pics
+      positioned = [ translate (fromIntegral (col * hSpacing)) 
+                               (fromIntegral (row * vSpacing)) 
+                               pic
+                   | (idx, pic) <- zip [0..] picsList,
+                     let row = idx `div` cols
+                         col = idx `mod` cols
+                   ]
+
+  pure $ pictures positioned
 --
 --       
 --       

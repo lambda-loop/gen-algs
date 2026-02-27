@@ -12,6 +12,7 @@ import Graphics.Gloss.Interface.IO.Simulate
 import qualified Data.List as List
 import qualified System.Random.MWC as MWC
 import Ant.Board.Dir (Dir (Up))
+import qualified Data.Set as Set
 
 data Ant = Ant
   { ant_pos     :: Pos2D
@@ -19,6 +20,7 @@ data Ant = Ant
   , ant_steps   :: Int
   , ant_mind    :: Mind
   , current_dir :: Dir
+  , explored_set:: Set.Set Pos2D
   } deriving (Eq, Show)
 
 data Status
