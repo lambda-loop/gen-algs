@@ -89,6 +89,20 @@ runTest = do
   state₀ <- initialState gen ant_mind
   simulateIO FullScreen black 60 state₀ modelPainter updateModel
 
+celebrate :: Mind -> IO ()
+celebrate mind = do
+  gen <- MWC.createSystemRandom
+  state₀ <- initialState gen mind
+  simulateIO FullScreen black 60 state₀ modelPainter 
+    -- updateModel
+    updateModelWithRestart
 
-updateModel' :: ViewPort -> Float -> World.State -> IO World.State
-updateModel' _ _ = World.Flow.step
+updateModelWithRestart :: ViewPort -> Float -> World.State -> IO World.State
+updateModelWithRestart _ _ s
+  | World.status s == World.Running = do 
+    -- print (World.score s)
+    step s
+  | otherwise                       = initialState gen mind 
+      where mind = (World.ant_mind . World.player) s
+            gen  = World.gen s 
+    

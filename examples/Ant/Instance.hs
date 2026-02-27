@@ -21,8 +21,17 @@ import Ant.Feedback
 import Graphics.Gloss.Interface.IO.Simulate
 -- import qualified Data.Set as Set
 
+newtype MindScore = MindScore (Int, Integer)
+  deriving (Eq, Show)
+instance Ord MindScore where
+  (<=) :: MindScore -> MindScore -> Bool
+  MindScore (eatensL, scoreL) <= MindScore (eatensR, scoreR) 
+    = scoreL <= scoreR
+    -- | scoreL > 90_000 && scoreR > 90_000 = eatensL <= eatensR
+    -- | otherwise          = scoreL <= scoreR
+    
 instance Genome Mind where
-  type (Score Mind) = Integer
+  type (Score Mind) = MindScore 
 
   fit :: Mind -> IO (Fen Mind (Score Mind))
   fit mind = do
@@ -35,18 +44,23 @@ instance Genome Mind where
       
       let steps   = (ant_steps . player) s'
           explr   = (explored_set . player) s'
-          score_s = toInteger $ length explr + (2 ^ score s')
-      pure score_s
+          eaten = score s'
+          score_s = toInteger $ (steps * length explr) + (2 ^ eaten)
 
-    let average_score = sum scores `div` fromIntegral chances
-    pure (Fen mind average_score)
+      pure (score_s, eaten)
+    let (scores', eatens) = unzip scores
+    let average_score = sum scores' `div` fromIntegral chances
+        average_eatens= sum eatens `div` chances
+        mind_score    = MindScore (average_eatens, average_score)
+    -- print average_eatens
+    pure (Fen mind mind_score)
 
     -- let rv@(best:_) = List.sortOn (Data.Ord.Down . (\(Fen _ b) -> b)) (scores)
     --
     -- pure best
 
   done :: Fen Mind (Score Mind) -> Bool
-  done (Fen _ n) = n > 700
+  done (Fen _ (MindScore (eatens, _))) = eatens > 100
 
   new :: IO Mind
   new = randMind =<< MWC.createSystemRandom 

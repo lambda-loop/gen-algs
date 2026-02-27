@@ -62,23 +62,31 @@ evolve nI popI agentsI = do
   feedbacker (execStateT follower Vec.empty )
 
   let ags' = cycle (Vec.toList qs)
-  forM_ ags' $ \ag -> do
-    -- threadDelay 1_000_000
+  -- sorry1 <- readTVarIO . snapshot . head $ ags'
+  -- sorry2 <- newTVarIO (sorry1 Vec.! 0)
+
+  forWhile ags' $ \ag -> do
     let t_vect = snapshot ag
 
-    t <- readTVarIO t_vect 
-    l <- (mapM fit . Vec.toList) t
+    t::Vec.Vector a <- readTVarIO t_vect 
+    l::[Fen a (Score a)] <- (mapM fit . Vec.toList) t
     let rv@(best:_) = List.sortOn (Data.Ord.Down . (\(Fen _ b) -> b)) l
-    when (done best) $ do
-      print "done"
-      print best
-      exitSuccess
+        Fen gene _ = best
 
     putStrLn $ "----------------------------------------------------"
     print . take 10 $ fmap (\(Fen _ b) -> b) rv
-    -- putStrLn $ "queue length: " ++ show q_len
+    if done best then pure (Just gene)
+    else pure Nothing
 
-  exitFailure
+  where
+    -- TODO: iteration limits??
+    forWhile :: [b] -> (b -> IO (Maybe c)) -> IO c
+    forWhile [] _ = error "aaa sorry the clock iss.."
+    forWhile (x:xs) f = do
+      mx <- f x 
+      case mx of
+        Nothing -> forWhile (x:xs) f
+        Just x' -> pure x'
 
 spawnAgents :: undefined
 spawnAgents = undefined

@@ -25,7 +25,8 @@ step s
   | otherwise = do
     let Ant {..} = player s
 
-    if ant_steps > 1_000 then 
+    let magic = 300 -- WARNING: 
+    if ant_steps > magic then 
       pure s { status = Over }
     else let 
       move = ant_mind `act` s
@@ -44,7 +45,7 @@ step s
        
       in do
       foods' <- do 
-        if ant_steps `rem` 100 /= 0 then pure fs -- WARNING: magic values
+        if ant_steps `rem` (magic `div` 10) /= 0 then pure fs -- WARNING: magic values
         else Vec.snoc fs <$> foodGen fs (blocks s) pos' (gen s)
 
       let foods'' = Vec.filter (/= pos') foods'
