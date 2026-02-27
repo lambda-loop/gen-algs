@@ -45,10 +45,8 @@ instance Genome Mind where
     --
     -- pure best
 
-
-  -- dont care for a ending o.O
   done :: Fen Mind (Score Mind) -> Bool
-  done = const False
+  done (Fen _ n) = n > 700
 
   new :: IO Mind
   new = randMind =<< MWC.createSystemRandom 
@@ -111,7 +109,20 @@ instance Genome Mind where
   
   -- type (Follower Mind) = TVar (Vec.Vector Mind)
   feedbacker :: IO (Vec.Vector Mind) -> IO ()
-  feedbacker tVec = do
-    model₀ <- mkModel tVec
-    simulateIO FullScreen black 120
-      model₀ painter updater
+  feedbacker a_vec = do
+    gen <- MWC.createSystemRandom
+    vec <- a_vec
+    states <- mapM (initialState gen) vec
+    results <- mapM playWholeGame states
+    let scores = score <$> results
+    print scores
+    
+    -- _ <- forM results $ \s -> 
+    --   pure $ score s
+      
+    
+
+    -- Vec.forM 
+    -- model₀ <- mkModel tVec
+    -- simulateIO FullScreen black 360
+    --   model₀ painter updater

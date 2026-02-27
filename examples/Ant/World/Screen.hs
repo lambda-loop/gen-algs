@@ -90,3 +90,5 @@ runTest = do
   simulateIO FullScreen black 60 state₀ modelPainter updateModel
 
 
+updateModel' :: ViewPort -> Float -> World.State -> IO World.State
+updateModel' _ _ = World.Flow.step
