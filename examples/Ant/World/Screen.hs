@@ -47,12 +47,14 @@ initialState gen ant_mind = do
         , current_dir = Up 
         , explored_set = Set.empty } -- TODO: not randomiztn
       blocks_ = blocks'
+      blocksV = Vec.fromList blocks_
+  fs <- foodGen Vec.empty blocksV p gen 
   pure World.State 
     { status = World.Running
     , player = ant
     , score  = 0
-    , blocks = Vec.filter (/= p) $ Vec.fromList blocks_ -- Vec.++ more_blocks
-    , foods  = Vec.empty
+    , blocks = Vec.filter (/= p) blocksV -- Vec.++ more_blocks
+    , foods  = Vec.fromList [fs]
     , gen    = gen }
 
 

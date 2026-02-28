@@ -25,7 +25,7 @@ step s
   | otherwise = do
     let Ant {..} = player s
 
-    let magic = 300 -- WARNING: 
+    let magic = 2_000 -- WARNING: 
     if ant_steps > magic then 
       pure s { status = Over }
     else let 
@@ -42,29 +42,35 @@ step s
       status' | pos' `Vec.elem` blocks s = Over
               | otherwise = status s 
       fs = foods s
-       
       in do
-      foods' <- do 
-        if ant_steps `rem` (magic `div` 10) /= 0 then pure fs -- WARNING: magic values
-        else Vec.snoc fs <$> foodGen fs (blocks s) pos' (gen s)
+      (fs', score') <- do
+        if pos' `Vec.elem` fs then do
+          f <- foodGen fs (blocks s) pos' (gen s)
+          (pure . (,score s + 1) . Vec.fromList) [f]
+        else       pure (fs, score s)
+       
+      -- foods' <- do 
+      --   if ant_steps `rem` (magic `div` 10) /= 0 then pure fs -- WARNING: magic values
+      --   else Vec.snoc fs <$> foodGen fs (blocks s) pos' (gen s)
+      --
+      -- let foods'' = Vec.filter (/= pos') foods'
+      --     score'  
+      --       | Vec.length foods' /= Vec.length foods'' = score s + 1
+      --       | otherwise = score s
 
-      let foods'' = Vec.filter (/= pos') foods'
-          score'  
-            | Vec.length foods' /= Vec.length foods'' = score s + 1
-            | otherwise = score s
-
-      pure s { player = ant', status = status', foods = foods'', score = score'}
+      pure s { player = ant', status = status', foods = fs', score = score'}
 
   where  
     itsOver World.State {..} = status == Over
-    foodGen :: Vec.Vector Pos2D -> Vec.Vector Pos2D -> Pos2D -> MWC.GenIO -> IO Pos2D
-    foodGen fs bs ant_pos gen = do 
-      pos' <- new_pos gen
-      if pos' `Vec.elem` fs ||
-         pos' `Vec.elem` bs || 
-         pos' == ant_pos then foodGen fs bs ant_pos gen
-      else pure pos'
 
+foodGen :: Vec.Vector Pos2D -> Vec.Vector Pos2D -> Pos2D -> MWC.GenIO -> IO Pos2D
+foodGen fs bs ant_pos gen = do 
+  pos' <- new_pos gen
+  if pos' `Vec.elem` fs ||
+     pos' `Vec.elem` bs || 
+     pos' == ant_pos then foodGen fs bs ant_pos gen
+  else pure pos'
+  where
     new_pos :: MWC.GenIO -> IO Pos2D -- WARNING: magic values
     new_pos gen = do 
       i <- MWC.uniformR (1, 29) gen

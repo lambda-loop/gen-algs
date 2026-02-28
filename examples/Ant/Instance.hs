@@ -133,10 +133,6 @@ instance Genome Mind where
     
     -- _ <- forM results $ \s -> 
     --   pure $ score s
-      
-    
-
-    -- Vec.forM 
-    -- model₀ <- mkModel tVec
+    -- model₀ <- mkModel a_vec
     -- simulateIO FullScreen black 360
     --   model₀ painter updater
