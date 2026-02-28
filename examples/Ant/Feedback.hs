@@ -58,13 +58,18 @@ updater _ _ model = do
 
   where 
     stillRunning v = do --Vec.any ((== World.Running) . World.status) 
-      let max_rounds::Int = 1_000 -- WARNING: magic value
+      -- let max_rounds::Int = 1_000 -- WARNING: magic value
       -- BUG: will not work
-      s <- v `MVec.read` 0
-      let ant   = World.player s
-          steps = World.ant_steps ant
-      print steps
-      pure (steps < 1_001)
+      v' <- Vec.freeze v
+      pure $ Vec.any ((== World.Running) . World.status) v'
+
+
+      
+      -- s <- v `MVec.read` 0
+      -- let ant   = World.player s
+      --     steps = World.ant_steps ant
+      -- print steps
+      -- pure (steps < 1_001)
 
 -- -- TODO: additional informqation [Fen Mind Integer] 
 -- stageGames :: StateT (Vec.Vector World.State) IO ()

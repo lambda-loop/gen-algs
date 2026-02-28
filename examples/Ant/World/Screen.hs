@@ -43,6 +43,7 @@ initialState gen ant_mind = do
         { ant_pos = p 
         -- , ant_score   = 0
         , ant_steps   = 0
+        , ant_stamina = World.defaultStamina
         , ant_mind    = ant_mind
         , current_dir = Up 
         , explored_set = Set.empty } -- TODO: not randomiztn

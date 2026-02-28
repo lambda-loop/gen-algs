@@ -17,6 +17,7 @@ import qualified Data.Set as Set
 data Ant = Ant
   { ant_pos     :: Pos2D
   -- , ant_score   :: Int
+  , ant_stamina :: Int
   , ant_steps   :: Int
   , ant_mind    :: Mind
   , current_dir :: Dir
@@ -37,3 +38,6 @@ data State = State
   , gen    :: MWC.GenIO
   } -- deriving (Eq, Show)
 
+
+defaultStamina :: Int
+defaultStamina = 900

@@ -25,17 +25,19 @@ step s
   | otherwise = do
     let Ant {..} = player s
 
-    let magic = 2_000 -- WARNING: 
-    if ant_steps > magic then 
+    -- let magic = 2_000 -- WARNING: 
+    if ant_stamina <= 0 then 
       pure s { status = Over }
     else let 
       move = ant_mind `act` s
       (pos', dir') = (ant_pos, current_dir) `after` move
     
+      -- TODO: fix CHAOS
       ant' = Ant 
         { ant_pos     = pos'
         , ant_steps   = ant_steps + 1
         , ant_mind    = ant_mind
+        , ant_stamina = ant_stamina 
         , current_dir = dir' 
         , explored_set = pos' `Set.insert` explored_set }
 
@@ -43,11 +45,11 @@ step s
               | otherwise = status s 
       fs = foods s
       in do
-      (fs', score') <- do
+      (fs', score', stamina') <- do
         if pos' `Vec.elem` fs then do
           f <- foodGen fs (blocks s) pos' (gen s)
-          (pure . (,score s + 1) . Vec.fromList) [f]
-        else       pure (fs, score s)
+          (pure . (,score s + 1, defaultStamina) . Vec.fromList) [f]
+        else       pure (fs, score s, ant_stamina - 1)
        
       -- foods' <- do 
       --   if ant_steps `rem` (magic `div` 10) /= 0 then pure fs -- WARNING: magic values
@@ -58,7 +60,8 @@ step s
       --       | Vec.length foods' /= Vec.length foods'' = score s + 1
       --       | otherwise = score s
 
-      pure s { player = ant', status = status', foods = fs', score = score'}
+      pure s { player = ant' { ant_stamina = stamina' } 
+        , status = status', foods = fs', score = score'}
 
   where  
     itsOver World.State {..} = status == Over

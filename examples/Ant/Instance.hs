@@ -37,7 +37,7 @@ instance Genome Mind where
   fit mind = do
     gen <- MWC.createSystemRandom
     -- scores <- replicateM 1 $ do 
-    let chances = 3
+    let chances = 5
     scores <- replicateM chances $ do 
       s   <- initialState gen mind
       s'  <- playWholeGame s
@@ -45,7 +45,7 @@ instance Genome Mind where
       let steps   = (ant_steps . player) s'
           explr   = (explored_set . player) s'
           eaten = score s'
-          score_s = toInteger $ (steps * length explr) + (2 ^ eaten)
+          score_s = toInteger $ (length explr) + (2 ^ eaten)
 
       pure (score_s, eaten)
     let (scores', eatens) = unzip scores
