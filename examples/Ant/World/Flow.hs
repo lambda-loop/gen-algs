@@ -11,6 +11,10 @@ import Control.Monad
 import qualified Data.Vector.Strict as Vec
 import qualified System.Random.MWC as MWC
 import qualified Data.Set as Set
+import Ant.Dna (Mind)
+import Ant.Board.Dir (Dir)
+import Control.Monad.ST.Strict
+import Control.Monad.State.Strict
 
 -- TODO: lenses when ;-;?
 step :: World.State -> IO World.State
@@ -116,3 +120,59 @@ playWholeGame s = do
   if status s' == Running then
     playWholeGame s'
   else pure s'
+
+-- fast state
+-- data FState = FState 
+--   { status        :: !Status 
+--   
+--   , blocks        :: !Vec.Vector Pos2D
+--   , food          :: !Pos2D
+--
+--   , steps         :: !Int
+--   , score         :: !Int
+--   , ant_pos       :: !Pos2D
+--   , mind          :: !Mind
+--   , current_dir   :: !Dir 
+--   , exporated_set :: !Set.Set Pos2D
+--
+--   , gen           :: !MWC.GenIO
+--   }
+
+
+playWholeGameST :: StateT World.State IO World.State
+playWholeGameST = do 
+  s <- get
+  if status s == Over then pure s
+  else do 
+    let ant@Ant {..} = player s
+    if ant_stamina <= 0 then 
+      pure s { status = Over }
+    else let 
+      !move = ant_mind `act` s
+      !(pos', dir') = (ant_pos, current_dir) `after` move
+    
+
+      status' | pos' `Vec.elem` blocks s = Over
+              | otherwise = status s 
+      fs = foods s
+
+      ant' = ant  
+        { ant_pos = pos'
+        , ant_steps   = ant_steps + 1
+        , current_dir = dir' 
+        , explored_set = pos' `Set.insert` explored_set 
+        }
+        
+      in do
+      (fs', score', stamina') <- do
+        if pos' `Vec.elem` fs then do
+          f <- liftIO $ foodGen fs (blocks s) pos' (gen s)
+          (pure . (,score s + 1, defaultStamina) . Vec.fromList) [f]
+        else pure (fs, score s, ant_stamina - 1)
+
+      put s { player = ant' { ant_stamina = stamina' } 
+        , status = status', foods = fs', score = score'}
+
+      playWholeGameST
+
+

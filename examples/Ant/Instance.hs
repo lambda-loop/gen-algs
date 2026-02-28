@@ -19,6 +19,7 @@ import Control.Concurrent.STM (TVar)
 import qualified Data.Vector.Strict as Vec
 import Ant.Feedback
 import Graphics.Gloss.Interface.IO.Simulate
+import Control.Monad.State.Strict
 -- import qualified Data.Set as Set
 
 newtype MindScore = MindScore (Int, Integer)
@@ -37,15 +38,15 @@ instance Genome Mind where
   fit mind = do
     gen <- MWC.createSystemRandom
     -- scores <- replicateM 1 $ do 
-    let chances = 10
+    let chances = 5
     scores <- replicateM chances $ do 
       s   <- initialState gen mind
-      s'  <- playWholeGame s
+      s'  <- evalStateT playWholeGameST s
       
       let steps   = (ant_steps . player) s'
           explr   = (explored_set . player) s'
           eaten = score s'
-          score_s = toInteger $ (steps * length explr) + (2 ^ eaten)
+          score_s = toInteger $ (steps * length explr) * (2 ^ eaten)
 
       pure (score_s, eaten)
     let (scores', eatens) = unzip scores
