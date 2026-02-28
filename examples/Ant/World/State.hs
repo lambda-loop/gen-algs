@@ -40,4 +40,4 @@ data State = State
 
 
 defaultStamina :: Int
-defaultStamina = 900
+defaultStamina = 450

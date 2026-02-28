@@ -10,7 +10,7 @@ import Ant.Instance
 main :: IO ()
 main = do
   -- a :: Expr <- IM.evolve 5 20 2
-  a :: Mind <- IM.evolve 3 50 2
+  a :: Mind <- IM.evolve 2 10 2
   -- a :: Expr <- HF.evolve 
   print a
   print "lets celebrate:"
