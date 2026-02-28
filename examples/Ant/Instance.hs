@@ -19,6 +19,7 @@ import Control.Concurrent.STM (TVar)
 import qualified Data.Vector.Strict as Vec
 import Ant.Feedback
 import Graphics.Gloss.Interface.IO.Simulate
+import Control.Concurrent (threadDelay)
 -- import qualified Data.Set as Set
 
 newtype MindScore = MindScore (Int, Integer)
@@ -37,7 +38,7 @@ instance Genome Mind where
   fit mind = do
     gen <- MWC.createSystemRandom
     -- scores <- replicateM 1 $ do 
-    let chances = 5
+    let chances = 3
     scores <- replicateM chances $ do 
       s   <- initialState gen mind
       s'  <- playWholeGame s
@@ -45,14 +46,29 @@ instance Genome Mind where
       let steps   = (ant_steps . player) s'
           explr   = (explored_set . player) s'
           eaten = score s'
-          score_s = toInteger $ (length explr) + (2 ^ eaten)
+          score_s = toInteger $ (steps * length explr) + (2 ^ eaten)
 
       pure (score_s, eaten)
     let (scores', eatens) = unzip scores
     let average_score = sum scores' `div` fromIntegral chances
         average_eatens= sum eatens `div` chances
-        mind_score    = MindScore (average_eatens, average_score)
     -- print average_eatens
+    -- 100 <     => 0
+    -- 50< < 100 => 1/2
+    -- 50<       => 1
+    let tax x (n :: Integer)
+          | x <= (100*2)   = n
+          | x < (200*2)   = (toInteger . fromEnum) (x' / (50*2) * n')
+          | otherwise = 0
+          where x' :: Double = fromIntegral x
+                n' = fromIntegral n
+        mind_weightL = Vec.length (shouldKeepGoing mind)
+        mind_weightR = Vec.length (shouldTurnLeft mind)
+        mind_weight  = mind_weightL + mind_weightR
+        mind_score  = MindScore (average_eatens, average_score)
+
+    when (mind_weightL > 100) $ print mind_weightL
+    when (mind_weightR > 100) $ print mind_weightR
     pure (Fen mind mind_score)
 
     -- let rv@(best:_) = List.sortOn (Data.Ord.Down . (\(Fen _ b) -> b)) (scores)
@@ -60,7 +76,7 @@ instance Genome Mind where
     -- pure best
 
   done :: Fen Mind (Score Mind) -> Bool
-  done (Fen _ (MindScore (eatens, _))) = eatens > 100
+  done (Fen _ (MindScore (eatens, _))) = eatens > 50 
 
   new :: IO Mind
   new = randMind =<< MWC.createSystemRandom 
@@ -124,12 +140,14 @@ instance Genome Mind where
   -- type (Follower Mind) = TVar (Vec.Vector Mind)
   feedbacker :: IO (Vec.Vector Mind) -> IO ()
   feedbacker a_vec = do
-    gen <- MWC.createSystemRandom
-    vec <- a_vec
-    states <- mapM (initialState gen) vec
-    results <- mapM playWholeGame states
-    let scores = score <$> results
-    print scores
+    -- threadDelay 1_000_000
+    -- gen <- MWC.createSystemRandom
+    -- vec <- a_vec
+    -- states <- mapM (initialState gen) vec
+    -- results <- mapM playWholeGame states
+    -- let scores = score <$> results
+    -- print scores
+    pure ()
     
     -- _ <- forM results $ \s -> 
     --   pure $ score s

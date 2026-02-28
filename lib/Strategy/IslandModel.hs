@@ -66,6 +66,7 @@ evolve nI popI agentsI = do
   -- sorry2 <- newTVarIO (sorry1 Vec.! 0)
 
   forWhile ags' $ \ag -> do
+    threadDelay 1_000_000
     let t_vect = snapshot ag
 
     t::Vec.Vector a <- readTVarIO t_vect 
